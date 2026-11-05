@@ -26,7 +26,11 @@
 set -uo pipefail          # deliberately not -e: one model failing must not abort the rest
 : "${SCRATCH:?SCRATCH is not set; submit from an ACES login shell}"
 cd "$SLURM_SUBMIT_DIR"
-MODELS="${1:-qwen3vl gemma4}"
+# "$*" not "$1": sbatch does not preserve a quoted multi-model argument, so
+# `sbatch 02_full.slurm "qwen3vl gemma4"` arrives as two positional args and
+# "${1}" would silently run only the first model.
+MODELS="${*:-qwen3vl gemma4}"
+echo "models requested: $MODELS"
 
 export VSI_ROOT="$SCRATCH/vsi"
 export HF_HOME="$SCRATCH/hf"
@@ -57,6 +61,18 @@ for MODEL in $MODELS; do
   rc=$?; [ "$rc" -ne 0 ] && rc_total=$rc
 
   deactivate 2>/dev/null || true
+done
+
+# Verify every requested model actually produced results. Without this a
+# half-finished loop still exits 0 and the job reads as COMPLETED.
+for MODEL in $MODELS; do
+  f="$VSI_ROOT/results/${MODEL}.jsonl"
+  n=$([ -f "$f" ] && wc -l < "$f" || echo 0)
+  echo "verify $MODEL: $n rows in $(basename "$f")"
+  if [ "$n" -lt 100 ]; then
+    echo "ERROR: $MODEL produced only $n rows -- did it run at all?" >&2
+    rc_total=1
+  fi
 done
 
 # Record the resolved versions and driver. The driver line only exists on a GPU
