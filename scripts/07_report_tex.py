@@ -349,6 +349,10 @@ def main() -> int:
     for p in src.glob("index.json"):
         shutil.copy(p, dst)
 
+    bib_src = Path(__file__).resolve().parents[1] / "report" / "references.bib"
+    if bib_src.exists():
+        shutil.copy(bib_src, out.parent / "references.bib")
+
     out.write_text(build(args.panels), encoding="utf-8")
     print(f"wrote {out}  ({out.stat().st_size/1024:.0f} KB), "
           f"{len(list(dst.glob('*.png')))} figures copied")
