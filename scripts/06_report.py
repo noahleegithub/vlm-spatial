@@ -69,8 +69,14 @@ td { padding: 2pt 3pt; border-bottom: 0.5pt solid #ddd; vertical-align: top; }
 td.num { font-variant-numeric: tabular-nums; }
 .mono { font-family: "SF Mono", Menlo, monospace; font-size: 7.4pt; }
 .muted { color: #666; }
-.gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 6pt; margin: 3pt 0 2pt 0; }
-.case { border: 0.6pt solid #ccc; border-radius: 2pt; overflow: hidden; break-inside: avoid; }
+/* inline-block, not grid: Chromium will not fragment a CSS grid across pages, so
+   the whole gallery jumps to the next page and pushes the taxonomy/discussion
+   onto a third. Inline-block cards break between rows. */
+.gallery { display: block; margin: 3pt 0 2pt 0; }
+.case { display: inline-block; width: 48.7%; vertical-align: top;
+        margin: 0 0 6pt 0; border: 0.6pt solid #ccc; border-radius: 2pt;
+        overflow: hidden; break-inside: avoid; }
+.case:nth-child(odd) { margin-right: 2%; }
 .case img { width: 100%; display: block; }
 .cap { padding: 2pt 3pt 3pt 3pt; font-size: 7.2pt; line-height: 1.2; }
 .cap b { font-size: 7.4pt; }
@@ -84,12 +90,14 @@ ol.refs li { margin-bottom: 1pt; }
 code { font-family: "SF Mono", Menlo, monospace; font-size: 7.5pt; background: #f4f4f4;
        padding: 0 1.2pt; }
 .small { font-size: 7.4pt; }
-body.compact { font-size: 8.3pt; line-height: 1.2; }
-body.compact table { font-size: 7.3pt; }
-body.compact .gallery { gap: 4pt; }
-body.compact h2 { margin: 6pt 0 2pt 0; }
-body.compact .cap { font-size: 6.8pt; }
-body.compact ol.refs { font-size: 7pt; }
+body.compact { font-size: 7.9pt; line-height: 1.17; }
+body.compact table { font-size: 6.9pt; }
+body.compact h2 { margin: 5pt 0 1.5pt 0; font-size: 8.8pt; }
+body.compact h3 { margin: 5pt 0 1.5pt 0; }
+body.compact .cap { font-size: 6.6pt; padding: 1.5pt 2.5pt 2pt 2.5pt; }
+body.compact ol.refs { font-size: 6.7pt; line-height: 1.2; }
+body.compact .case { margin-bottom: 4pt; }
+body.compact p { margin: 2pt 0; }
 """
 
 
@@ -294,8 +302,11 @@ def taxonomy_block() -> str:
     for c, n in sorted(counts.items(), key=lambda kv: -kv[1]):
         rows.append(f"<tr><td><b>{c}</b></td><td class='num'>{n}</td>"
                     f"<td>{desc.get(c, '')}</td></tr>")
+    total = sum(counts.values())
     return ("<table><tr><th style='width:24%'>Class</th><th style='width:8%'>n</th>"
-            "<th>Mechanism</th></tr>" + "".join(rows) + "</table>")
+            "<th>Mechanism</th></tr>" + "".join(rows) + "</table>"
+            f"<p class='muted small'>{total} failing questions across all models and non-blind tasks "
+            f"(near misses inside 30% relative error are excluded: MRA already gives partial credit).</p>")
 
 
 def gallery(panels: int) -> str:
@@ -362,9 +373,8 @@ spatial reasoning.</p>
 
 <h3>Numeric failure signatures</h3>
 {diagnostics_block(st)}
-<p class="muted" style="font-size:7.6pt">A model that genuinely measures a room should have
-r(pred, GT) clearly above zero and spread comparable to the ground truth. r ≈ 0 with
-σ<sub>pred</sub>/σ<sub>GT</sub> ≪ 1 is the signature of answering from priors.</p>
+<p class="muted small">A model that measures a room should have r(pred, GT) well above zero and
+spread near the ground truth; r ≈ 0 with σ<sub>pred</sub>/σ<sub>GT</sub> ≪ 1 is prior recall.</p>
 
 <h3>Control arm: same questions, no frames</h3>
 {blind_table(scores)}
@@ -379,25 +389,34 @@ raw prediction.</p>
 {taxonomy_block()}
 
 <h2>Discussion</h2>
-<div class="todo"><b>Write this from your numbers — 5–7 sentences, no more.</b>
-Suggested beats: (1) which model wins where, with one number; (2) the accuracy/MRA split between
-the two categories — navigation vs metric estimation; (3) the parse-failure and blind-arm results,
-i.e. how much of the score survives without vision; (4) the dominant failure mechanism and its
-evidence; (5) the one improvement you would make to the model or the harness; (6) the fundamental
-limitation — what a 32-frame token budget cannot represent regardless of model.</div>
+<p>Qwen3-VL-8B is the only model of the three that measures rather than recites, reaching MRA
+0.479 on absolute distance and 0.571 on room size against 0.350 route-planning accuracy. Removing
+the video costs it 17.3 and 24.2 MRA points with non-overlapping confidence intervals, yet roughly
+a third of its distance score survives with no image at all, so part of the score is prior recall
+in the benchmark as much as in the model. Gemma-4-12B returns no room-size estimate on any of the
+288 questions, and its absolute-distance answers need the lenient parser to reach MRA 0.228, so its
+0.3 strict figure measures answer format rather than spatial ability. Molmo2-8B's room-size answers
+correlate with ground truth (r = 0.74) but carry three times its spread, and its blind arm — a
+constant 20 m² — lands within one point of the best constant any model could score against this
+ground truth, which is a property of MRA's threshold structure as much as of the model. Route
+planning is where all three converge (29–35%) and the confusion matrix shows a shared mechanism:
+B and C are over-predicted and A and D under-used, so much of the error is a letter prior rather
+than a failed turn. The largest remaining gain is in the input, not the model: 32 frames at 448 px
+cannot carry the metric scale of a room, and asking the model to verify a proposed depth or
+floor-plan estimate would test spatial reasoning instead of recall. The limitation is structural —
+no frame budget repairs a benchmark whose numeric answers can be scored above chance by a constant.</p>
 
 <h2>References</h2>
 <ol class="refs">
 <li>J. Yang, S. Yang, A. Gupta, R. Han, L. Fei-Fei, S. Xie. <i>Thinking in Space: How Multimodal
-Large Language Models See, Remember and Recall Spaces.</i> CVPR 2025. arXiv:2412.14171.</li>
-<li>VSI-Bench dataset and evaluation harness. huggingface.co/datasets/nyu-visionx/VSI-Bench;
-github.com/vision-x-nyu/thinking-in-space.</li>
-<li>Qwen Team. <i>Qwen3-VL</i> technical report / model card. huggingface.co/Qwen/Qwen3-VL-8B-Instruct.</li>
+Large Language Models See, Remember and Recall Spaces.</i> CVPR 2025. arXiv:2412.14171. Dataset and
+harness: huggingface.co/datasets/nyu-visionx/VSI-Bench; github.com/vision-x-nyu/thinking-in-space.</li>
+<li>Qwen Team. <i>Qwen3-VL</i> model card. huggingface.co/Qwen/Qwen3-VL-8B-Instruct.</li>
 <li>Google DeepMind. <i>Gemma 4</i> model card. huggingface.co/google/gemma-4-12B-it.</li>
 <li>Allen Institute for AI. <i>Molmo 2</i> model card. huggingface.co/allenai/Molmo2-8B.</li>
 <li>Z. Fan et al. <i>VLM-3R: Vision-Language Models Augmented with Instruction-Aligned 3D
-Reconstruction.</i> CVPR 2026. arXiv:2505.20279.</li>
-<li>A. Dai et al. <i>ScanNet</i> (CVPR 2017); C. Yeshwanth et al. <i>ScanNet++</i> (ICCV 2023).</li>
+Reconstruction.</i> CVPR 2026. arXiv:2505.20279. Scenes from ScanNet (CVPR 2017) and ScanNet++
+(ICCV 2023).</li>
 </ol>
 
 <p class="muted" style="font-size:7.2pt;margin-top:8pt">Protocol hash

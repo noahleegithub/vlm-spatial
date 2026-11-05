@@ -119,7 +119,7 @@ def render(r: dict, out_path: Path) -> None:
 
     W, pad, gap = 960, 10, 2
     thumb_w = (W - 2 * pad - gap * (len(pick) - 1)) // len(pick)
-    thumb_h = int(thumb_w * 0.78)
+    thumb_h = int(thumb_w * 0.62)
     strip_h = thumb_h + 26
     strip_y = pad
 
