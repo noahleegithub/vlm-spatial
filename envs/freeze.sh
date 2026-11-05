@@ -21,8 +21,12 @@ OUT="envs/lock-$(date -u +%F).txt"
   echo "# generated $(date -u +%FT%TZ)"
   echo "# host      $(hostname 2>/dev/null || echo unknown)"
   echo "# modules   $(module list 2>&1 | tr '\n' ' ' | sed 's/  */ /g')"
-  if command -v nvidia-smi >/dev/null 2>&1; then
+  # On a cpu node nvidia-smi exists but cannot reach a driver; probe with -L and
+  # record either the hardware or an explicit "none", never the driver error text.
+  if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
     echo "# gpu       $(nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader | head -1)"
+  else
+    echo "# gpu       none on this node (regenerate this lock on a GPU node for the driver line)"
   fi
   for e in main molmo2; do
     echo
