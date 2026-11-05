@@ -164,6 +164,33 @@ def _parse_area(text: str) -> float | None:
 
 
 
+_UNITS = {"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+          "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+          "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+          "seventeen": 17, "eighteen": 18, "nineteen": 19}
+_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60,
+         "seventy": 70, "eighty": 80, "ninety": 90}
+
+
+def _parse_spelled_number(text: str) -> float | None:
+    """First spelled-out number ("Twenty.", "twenty-five", "four").
+
+    Molmo 2 answers numeric questions in words, so without this the lenient
+    scorer records a parse failure where the model did give a magnitude. That
+    would attribute a parser limitation to the model.
+    """
+    words = re.findall(r"[a-z]+", text.lower())
+    for i, w in enumerate(words):
+        if w in _TENS:
+            val = _TENS[w]
+            if i + 1 < len(words) and words[i + 1] in _UNITS and _UNITS[words[i + 1]] < 10:
+                val += _UNITS[words[i + 1]]
+            return float(val)
+        if w in _UNITS:
+            return float(_UNITS[w])
+    return None
+
+
 def _strip_channels(text: str) -> str:
     """Remove Gemma-4 reasoning channel markers: <|channel>thought ... <channel|>."""
     if "<channel|>" in text:
@@ -187,7 +214,7 @@ def lenient_parse(raw_pred: str, question_type: str, ground_truth: str):
     gt_unit = TASKS.get(question_type, {}).get("unit", "m")
     clean = text.replace(",", "")
     if not _NUM.search(clean):
-        return None
+        return _parse_spelled_number(clean)
 
     if gt_unit == "m2":
         area = _parse_area(clean)
