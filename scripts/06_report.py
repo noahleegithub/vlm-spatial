@@ -40,15 +40,7 @@ TASK_LABEL = {
 }
 TASK_UNIT = {"route_planning": "ACC", "object_abs_distance": "MRA", "room_size_estimation": "MRA"}
 
-# Five detection buckets roll up into the four categories the brief allows;
-# the taxonomy table and the figure captions must agree, so both read this map.
-GROUP = {
-    "refusal": "Refusal / abstention",
-    "scale_confusion": "Scale confusion",
-    "scale_prior_anchor": "Scale confusion",
-    "egocentric_direction": "Egocentric direction",
-    "format_or_unit": "Answer format",
-}
+GROUP = C.FAILURE_GROUP   # single definition, shared with scripts/07
 
 CSS = """
 @page { size: letter; margin: 0.45in; }

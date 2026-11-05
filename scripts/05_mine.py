@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import textwrap
@@ -117,7 +118,12 @@ def render(r: dict, out_path: Path) -> None:
     step = max(1, len(frames) // N_SHOWN)
     pick = list(range(0, min(len(frames), step * N_SHOWN), step))[:N_SHOWN]
 
-    W, pad, gap = 960, 10, 2
+    # Width is a print decision: at 960 px the panel reads at ~8 pt across a
+    # 3.6 in column (HTML report); at 720 px it reads the same across 2.65 in
+    # (two-up in NeurIPS' 5.5 in text block). Font sizes stay fixed on purpose.
+    W = int(os.environ.get("VSI_PANEL_WIDTH", "960"))
+    wrapw = max(30, int(64 * W / 960))
+    pad, gap = 10, 2
     thumb_w = (W - 2 * pad - gap * (len(pick) - 1)) // len(pick)
     thumb_h = int(thumb_w * 0.62)
     strip_h = thumb_h + 26
@@ -127,8 +133,8 @@ def render(r: dict, out_path: Path) -> None:
         return (f"GT {r.get('ground_truth','')}   ·   "
                 f"Pred {(r.get('raw_output') or '').strip()[:60]}")
 
-    q_lines = textwrap.wrap(f"Q: {r.get('question','')}", width=64)[:4]
-    ans_lines = textwrap.wrap(wrap_ans(), width=64)[:2]
+    q_lines = textwrap.wrap(f"Q: {r.get('question','')}", width=wrapw)[:4]
+    ans_lines = textwrap.wrap(wrap_ans(), width=wrapw)[:2]
     head = f"{r['model']}  ·  {r['task']}  ·  {r['scene']}"
     H = strip_y + strip_h + 10 + 38 + 36 * (len(q_lines) + len(ans_lines)) + pad
 

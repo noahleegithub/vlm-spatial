@@ -56,6 +56,16 @@ TASKS = {
     "room_size_estimation":  {"metric": "MRA", "category": 2, "unit": "m2"},
 }
 
+# Detection buckets -> the four categories reported. Kept here so the HTML and
+# the LaTeX report cannot drift apart.
+FAILURE_GROUP = {
+    "refusal": "Refusal / abstention",
+    "scale_confusion": "Scale confusion",
+    "scale_prior_anchor": "Scale confusion",
+    "egocentric_direction": "Egocentric direction",
+    "format_or_unit": "Answer format",
+}
+
 # Verbatim from the official harness.
 MCA_QUESTION_TYPES = [
     "object_rel_direction_easy",
