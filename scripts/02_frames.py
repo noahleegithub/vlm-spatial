@@ -110,6 +110,7 @@ def main() -> int:
         if shutil.which(exe) is None:
             raise SystemExit(
                 f"{exe} not found; on ACES run `module load FFmpeg/7.0.2`")
+    print(C.describe_paths())
 
     scenes: dict[tuple[str, str], int] = {}
     for t in [x.strip() for x in args.tasks.split(",") if x.strip()]:

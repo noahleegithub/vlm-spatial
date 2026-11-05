@@ -69,8 +69,17 @@ def zip_complete(zip_path: Path, target: Path) -> bool:
     is not mistaken for a complete one just because its directory is non-empty.
     """
     with zipfile.ZipFile(zip_path) as z:
-        names = [n for n in z.namelist() if n.lower().endswith(".mp4")]
-    return bool(names) and all((target / n).exists() for n in names)
+        members = {n: z.getinfo(n).file_size for n in z.namelist()
+                   if n.lower().endswith(".mp4")}
+    if not members:
+        return False
+    # Compare sizes, not just existence: two concurrent unzips into the same
+    # directory leave truncated mp4s that exist but fail in ffmpeg.
+    for name, size in members.items():
+        path = target / name
+        if not path.exists() or path.stat().st_size != size:
+            return False
+    return True
 
 
 def main() -> int:
@@ -88,6 +97,7 @@ def main() -> int:
             raise SystemExit(f"unknown task {t}; known: {list(C.TASKS)}")
 
     C.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    print(C.describe_paths())
     annotations = C.DATA_DIR / "test.jsonl"
 
     if not args.no_download:

@@ -30,7 +30,10 @@ import numpy as np
 SCRATCH = Path(os.environ.get("SCRATCH", os.path.expanduser("~")))
 ROOT = Path(os.environ.get("VSI_ROOT", SCRATCH / "vsi"))
 HF_HOME = Path(os.environ.get("HF_HOME", ROOT / "hf"))
-VIDEO_DIR = Path(os.environ.get("VSI_VIDEO_DIR", HF_HOME / "vsibench"))
+# The extracted videos are dataset files, not a HuggingFace cache: keep them
+# under VSI_ROOT so that setting or forgetting HF_HOME can never make
+# 01_prepare write them somewhere 02_frames does not look.
+VIDEO_DIR = Path(os.environ.get("VSI_VIDEO_DIR", ROOT / "vsibench"))
 CACHE_DIR = Path(os.environ.get("VSI_CACHE", ROOT / "cache"))
 DATA_DIR = ROOT / "data"
 MANIFEST_DIR = DATA_DIR / "manifests"
@@ -260,6 +263,12 @@ def load_manifest(task: str) -> list[dict]:
         raise FileNotFoundError(
             f"missing manifest {p} -- run scripts/01_prepare.py first")
     return read_jsonl(p)
+
+
+def describe_paths() -> str:
+    """One-line layout summary; printed by every script that touches disk."""
+    return (f"root={ROOT}  videos={VIDEO_DIR}  frames={FRAME_DIR}  "
+            f"manifests={MANIFEST_DIR}  results={RESULTS_DIR}")
 
 
 def video_path(dataset: str, scene: str) -> Path:
