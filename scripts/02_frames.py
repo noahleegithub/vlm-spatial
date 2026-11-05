@@ -44,6 +44,27 @@ def probe(path: Path) -> tuple[int, float]:
 
 def extract(path: Path, outdir: Path, n_want: int, max_side: int) -> dict:
     outdir.mkdir(parents=True, exist_ok=True)
+    # Per-scene lock. Two jobs extracting into the same directory delete each
+    # other's JPEGs mid-run and produce "SHORT" scenes and rename errors that
+    # look like ffmpeg faults. A resubmitted data job is exactly how that
+    # happens, so make the second one fail loudly instead of corrupting.
+    lock = outdir / ".extract.lock"
+    try:
+        lock.mkdir()
+    except FileExistsError:
+        raise RuntimeError(
+            "another process is extracting this scene (.extract.lock present); "
+            "is a duplicate data job running?") from None
+    try:
+        return _extract_locked(path, outdir, n_want, max_side)
+    finally:
+        try:
+            lock.rmdir()
+        except OSError:
+            pass
+
+
+def _extract_locked(path: Path, outdir: Path, n_want: int, max_side: int) -> dict:
     # Invalidate the old marker before touching the JPEGs.  If ffmpeg fails,
     # the next run must not trust a stale frames.json (which could claim 32
     # frames while the directory is empty).
@@ -98,6 +119,19 @@ def main() -> int:
     items = sorted(scenes.items(), key=lambda kv: -kv[1])
     if args.limit_scenes:
         items = items[:args.limit_scenes]
+
+    # A crashed run can leave a per-scene lock behind. Extraction holds a lock
+    # for seconds, so anything older than 30 minutes is orphaned.
+    if C.FRAME_DIR.exists():
+        import time
+        now = time.time()
+        orphaned = [d for d in C.FRAME_DIR.rglob(".extract.lock")
+                    if now - d.stat().st_mtime > 1800]
+        for d in orphaned:
+            d.rmdir()
+        if orphaned:
+            print(f"cleared {len(orphaned)} orphaned .extract.lock dirs")
+
     print(f"{len(items)} unique scenes, {sum(n for _, n in items)} questions, "
           f"{C.N_FRAMES} frames each -> {C.FRAME_DIR}")
 
