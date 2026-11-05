@@ -111,7 +111,7 @@ make_env molmo2
 install_common "$BASE/molmo2"
 # shellcheck disable=SC1091
 source "$BASE/molmo2/bin/activate"
-python -m pip install -q "transformers==4.57.1" molmo_utils
+python -m pip install -q "transformers==4.57.1" molmo_utils einops
 echo "   transformers: $(python -c 'import transformers;print(transformers.__version__)')"
 deactivate
 

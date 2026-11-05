@@ -55,12 +55,24 @@ def _from_pretrained(cls, model_id: str, **extra):
         return cls.from_pretrained(model_id, torch_dtype="auto", **base)
 
 
+_CTRL = re.compile(r"<\|?(?:turn|channel|think|start_of_turn|end_of_turn|eos|bos)\|?>",
+                   re.IGNORECASE)
+
+
 def strip_channels(text: str) -> str:
-    """Drop Gemma-4 <|channel>thought ... <channel|> wrapper if present."""
+    """Remove reasoning-channel and turn markers left by the tokenizer.
+
+    Gemma 4 emits an empty <|channel>thought<channel|> block when thinking is
+    disabled and closes answers with <turn|>. Any of those surviving into the
+    scored string breaks the official first-token parser.
+    """
     if "<channel|>" in text:
-        text = text.rsplit("<channel|>", 1)[-1]
-    text = re.sub(r"<\|?channel\|?>?", " ", text)
-    return text.strip()
+        tail = text.rsplit("<channel|>", 1)[-1]
+        # Only keep the tail when the answer actually follows the marker; a
+        # trailing marker with nothing after it must not erase the answer.
+        if tail.strip():
+            text = tail
+    return _CTRL.sub("", text).strip()
 
 
 class BaseAdapter:
@@ -160,15 +172,15 @@ class Gemma4Adapter(BaseAdapter):
         with torch.inference_mode():
             out = self.model.generate(**inputs, max_new_tokens=MAX_NEW_TOKENS,
                                       do_sample=False)
-        raw = self.processor.decode(out[0][input_len:], skip_special_tokens=False)
-        # Prefer the model's own parser when the build exposes one.
-        try:
-            parsed = self.processor.parse_response(raw, prefix=inputs["input_ids"])
-            if isinstance(parsed, str) and parsed.strip():
-                raw = parsed
-        except Exception:                               # noqa: BLE001
-            pass
-        return strip_channels(raw).strip()
+        # Decode with special tokens removed: this build emits turn/channel
+        # markers ("B<turn|>") that the benchmark's first-token parser reads as
+        # part of the answer, scoring a correct letter as wrong. lmms-eval
+        # decodes with skip_special_tokens=True, so do the same. The raw form is
+        # only a fallback for a build that yields nothing.
+        text = self.processor.decode(out[0][input_len:], skip_special_tokens=True)
+        if not text.strip():
+            text = self.processor.decode(out[0][input_len:], skip_special_tokens=False)
+        return strip_channels(text).strip()
 
 
 class Molmo2Adapter(BaseAdapter):
