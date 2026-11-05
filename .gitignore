@@ -5,6 +5,11 @@ _local/
 # version contains STUB numbers that must not be mistaken for real results.
 results/
 report/*.html
+report/neurips/main.xdv
+report/neurips/main.log
+report/neurips/failures/
+report/neurips/main.pdf
+report/neurips/main.tex
 
 # Python / scheduler noise
 __pycache__/

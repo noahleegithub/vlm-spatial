@@ -61,6 +61,12 @@ the same module stack themselves, so they do not depend on the submitting shell.
 If an inference job exits on a few failed questions, resubmit the same `sbatch`
 command: successful rows are skipped and the error rows are retried.
 
+`report/neurips/main.pdf` is the NeurIPS-2026-format version (same two pages, same numbers):
+`python scripts/07_report_tex.py && ~/.local/bin/tectonic -X compile report/neurips/main.tex`.
+It needs the style file `report/neurips_2026.sty` and a tectonic binary; panels are re-rendered at
+`VSI_PANEL_WIDTH=720 VSI_PANEL_FONT_SZ=34` so they read at ~9pt when placed two-up in the 5.5in
+text block.
+
 `report/report.html` is self-contained (images embedded). Print it: open in a browser,
 Ctrl-P, US Letter, no scaling, "print backgrounds" on. It is laid out for exactly two pages. With the full three-model table, five
 figure panels and a populated taxonomy, build it with `--compact`, which is

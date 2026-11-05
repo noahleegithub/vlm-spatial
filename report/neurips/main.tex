@@ -72,24 +72,26 @@ MRA with no image; Gemma-4 retains nothing; Molmo2-8B scores \emph{higher} blind
 \vspace{2pt}
 \noindent\textbf{Numeric diagnostics.} A model that measures should track the ground truth
 ($r>0$) with comparable spread; $r\approx0$ with $\sigma_{\hat{y}}/\sigma_y\ll1$ is prior
-anchoring.\quad
-\begin{tabular}[t]{@{}llrrrr@{}}
+anchoring.
+
+\vspace{2pt}
+\begin{center}\begin{tabular}{@{}llrrrr@{}}
 \toprule
 Model & Task & $r$ & $\sigma_{\hat{y}}/\sigma_y$ & Parse fail. & Med.\ rel.\ err \\
 \midrule
-Gemma-4-12B & Absolute di & 0.2341 & 0.6624 & 96.8 & 54 \\
+Gemma-4-12B & Abs.\ dist. & 0.2341 & 0.6624 & 96.8 & 54\% \\
 Gemma-4-12B & Room size & -- & -- & 100.0 & -- \\
-Molmo2-8B & Absolute di & 0.3332 & 2.9955 & 99.9 & 100 \\
-Molmo2-8B & Room size & 0.7425 & 3.2377 & 38.2 & 71 \\
-Qwen3-VL-8B & Absolute di & 0.7143 & 0.6487 & 0.0 & 28 \\
-Qwen3-VL-8B & Room size & 0.8136 & 0.5758 & 0.0 & 21 \\
+Molmo2-8B & Abs.\ dist. & 0.3332 & 2.9955 & 99.9 & 100\% \\
+Molmo2-8B & Room size & 0.7425 & 3.2377 & 38.2 & 71\% \\
+Qwen3-VL-8B & Abs.\ dist. & 0.7143 & 0.6487 & 0.0 & 28\% \\
+Qwen3-VL-8B & Room size & 0.8136 & 0.5758 & 0.0 & 21\% \\
 \bottomrule
-\end{tabular}\par
+\end{tabular}\end{center}
 
 \section{Failure analysis}
-Figure~\ref{fig:cases} shows five representative failures, each with the frames the model saw, the
-question, ground truth and prediction. Table~\ref{tab:tax} groups 2789 failing questions into
-four categories.
+The five panels below are representative failures, each showing the frames the model saw with their
+source indices, the question, the ground truth and the prediction. Table~2 groups
+2789 failing questions into four categories.
 
 \vspace{2pt}
 \noindent
@@ -120,12 +122,9 @@ four categories.
 \par\smallskip
 
 \vspace{2pt}
-\begin{table}[h]
-\centering
-\caption{Failure taxonomy. Near misses inside 30\% relative error are excluded: MRA already gives
-them partial credit.}
-\label{tab:tax}
-\footnotesize
+\begin{center}
+\footnotesize\textbf{Table 2:} Failure taxonomy. Near misses inside 30\% relative error are
+excluded, since MRA already gives them partial credit.\par\vspace{2pt}
 {\scriptsize\begin{tabular}{@{}p{0.22\textwidth}rp{0.52\textwidth}@{}}
 \toprule
 Class & $n$ & Mechanism \\
@@ -136,7 +135,7 @@ Class & $n$ & Mechanism \\
 \textbf{Answer format} & 232 & right in substance, lost to the first-token parser \\
 \bottomrule
 \end{tabular}}
-\end{table}
+\end{center}
 
 \section{Discussion}
 Qwen3-VL-8B is the only model of the three that measures rather than recites: 47.9 MRA on absolute distance and 57.1 on room size against 35.0 route-planning accuracy. Removing the video costs it 17.3 and 24.2 MRA points with non-overlapping intervals, yet a third of its distance score survives with no image at all, so part of any VLM's score here is prior recall in the benchmark as much as perception. Gemma-4-12B returns no room-size estimate on any of the 288 questions and needs the lenient parser to reach 22.8 on distances, so its 0.3 strict figure measures answer format, not spatial ability. Molmo2-8B tracks room size ($r{=}0.74$) but overshoots threefold, and its blind arm --- a constant 20\,m$^2$ --- sits within a point of the best constant this ground truth allows, so MRA's thresholds reward hedging; route planning, where all three converge at 29--35\%, is dominated by a letter prior rather than by failed turns. The largest remaining gain is in the input, not the model: 32 frames at 448\,px cannot carry a room's metric scale, and asking the model to verify a proposed depth or floor plan would test spatial reasoning instead of recall. The limitation is structural --- no frame budget repairs a benchmark whose numeric answers can be scored above chance by a constant.

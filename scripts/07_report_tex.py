@@ -130,7 +130,9 @@ def diagnostics_rows(st: dict) -> str:
         rows.append(f"{DISPLAY.get(model, esc(model))} & {TASK_SHORT.get(task, esc(task))} & "
                     f"{r} & {g.get('sigma_pred_over_gt', '--')} & "
                     f"{pct(d.get('strict_parse_fail_rate'))} & "
-                    f"{pct(g.get('median_abs_rel_err'), 0)}\\% \\\\")
+                    + (f"{pct(g.get('median_abs_rel_err'), 0)}\\%"
+                       if g.get("median_abs_rel_err") is not None else "--")
+                    + " \\\\")
     return "\n".join(rows) if rows else r"\multicolumn{6}{c}{no diagnostics} \\"
 
 
@@ -299,7 +301,7 @@ Model & Task & $r$ & $\sigma_{{\hat{{y}}}}/\sigma_y$ & Parse fail. & Med.\ rel.\
 
 \section{{Failure analysis}}
 The five panels below are representative failures, each showing the frames the model saw with their
-source indices, the question, the ground truth and the prediction. Table~\ref{{tab:tax}} groups
+source indices, the question, the ground truth and the prediction. Table~2 groups
 {n_fail} failing questions into four categories.
 
 \vspace{{2pt}}
