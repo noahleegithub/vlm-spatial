@@ -1,0 +1,16 @@
+# Local dry-run workspace (dataset copy, frame cache, stub results) -- ~2 GB
+_local/
+
+# Generated outputs. The report is rebuilt from results/*.jsonl; the dry-run
+# version contains STUB numbers that must not be mistaken for real results.
+results/
+report/*.html
+
+# Python / scheduler noise
+__pycache__/
+*.pyc
+*.out
+*.part
+
+# Note: envs/lock-*.txt IS committed on purpose -- it is the version record
+# that makes the reported numbers reproducible.
