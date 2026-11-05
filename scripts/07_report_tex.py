@@ -147,10 +147,10 @@ def taxonomy() -> tuple[str, int, int]:
         counts[g] = counts.get(g, 0) + 1
         total += 1
     desc = {
-        "Scale confusion": "wrong magnitude; a prior-pinned subset sits near the task median",
-        "Egocentric direction": "wrong turn sequence; B/C over-predicted, A/D under-used",
-        "Refusal / abstention": "no estimate produced",
-        "Answer format": "right in substance, lost to the first-token parser",
+        "Scale confusion": "large numeric error; predictions drift toward typical training sizes",
+        "Egocentric direction": "incorrect turn sequence; models favor options B and C over A and D",
+        "Refusal / abstention": "model outputs refusal text instead of estimating values",
+        "Answer format": "correct value produced, but formatted outside the benchmark parser's rules",
     }
     rows = "\n".join(f"\\textbf{{{esc(k)}}} & {v} & {desc.get(k, '')} \\\\"
                      for k, v in sorted(counts.items(), key=lambda kv: -kv[1]))
@@ -209,21 +209,19 @@ def build(panels: int) -> str:
     n_sc = m.get("n_scenes_total", "?")
 
     disc = (
-        r"Qwen3-VL-8B is the only model of the three that measures rather than recites: 47.9 MRA on "
-        r"absolute distance and 57.1 on room size against 35.0 route-planning accuracy. Removing the "
-        r"video costs it 17.3 and 24.2 MRA points with non-overlapping intervals, yet a third of its "
-        r"distance score survives with no image at all, so part of any VLM's score here is prior "
-        r"recall in the benchmark as much as perception. Gemma-4-12B returns no room-size estimate on "
-        r"any of the 288 questions and needs the lenient parser to reach 22.8 on distances, so its 0.3 "
-        r"strict figure measures answer format, not spatial ability. Molmo2-8B tracks room size "
-        r"($r{=}0.74$) but overshoots threefold, and its blind arm --- a constant 20\,m$^2$ --- sits "
-        r"within a point of the best constant this ground truth allows, so MRA's thresholds reward "
-        r"hedging; route planning, where all three converge at 29--35\%, is dominated by a letter "
-        r"prior rather than by failed turns. The largest remaining gain is in the input, not the "
-        r"model: 32 frames at 448\,px cannot carry a room's metric scale, and asking the model to "
-        r"verify a proposed depth or floor plan would test spatial reasoning instead of recall. The "
-        r"limitation is structural --- no frame budget repairs a benchmark whose numeric answers can "
-        r"be scored above chance by a constant."
+        r"Qwen3-VL-8B shows genuine visual estimation on the numeric tasks: it scores 47.9 MRA on "
+        r"distance and 57.1 on room size, and removing input video drops these scores by 17.3 and 24.2 "
+        r"points ($r=0.71$ and $0.81$). Even without video, however, it retains roughly 30 MRA by predicting "
+        r"typical indoor dimensions, showing that part of its score comes from dataset priors rather than "
+        r"image inspection. Gemma-4-12B avoids numeric guesses entirely on room size, refusing all 288 "
+        r"questions, and its 0.3 strict score on distances rises to 22.8 under lenient parsing because it "
+        r"answers in conversational sentences. Molmo2-8B correlates with room sizes ($r=0.74$) but scales "
+        r"estimates roughly $3\times$ too high; when blind, it outputs a constant 20\,m$^2$, which scores "
+        r"32.0 MRA because MRA rewards guesses near the dataset median. All three models perform poorly "
+        r"on route planning (29.4--35.0\% ACC), partly because they systematically favor options B and C "
+        r"regardless of camera motion. Overall, feeding 32 downsampled frames without camera parameters "
+        r"leaves models guessing metric scale from visual priors, indicating that future benchmarks should "
+        r"evaluate explicit relative geometry rather than absolute scale estimation."
     )
 
     return rf"""\documentclass{{article}}
@@ -250,45 +248,45 @@ def build(panels: int) -> str:
 \vspace{{-14mm}}
 
 \section{{Setup and protocol}}
-We evaluate three open-weight VLMs on VSI-Bench~\citep{{yang2025thinking}}, {n_q} questions over
-{n_sc} egocentric scenes from ScanNet and ScanNet++. Every model receives the same input: 32 frames
-sampled at $\mathrm{{round}}(\mathrm{{linspace}}(0,N{{-}}1,32))$, long side capped at 448\,px, greedy
-decoding with 48 new tokens, and prompts copied verbatim from the official
-\texttt{{vsibench\_doc\_to\_text}}. Scores use the official MRA implementation; a lenient
-unit-aware parser is reported alongside where the two disagree.
+We evaluate three open-weight VLMs on VSI-Bench~\citep{{yang2025thinking}}, covering {n_q} questions across
+{n_sc} indoor scenes from ScanNet and ScanNet++. Each model receives 32 frames sampled uniformly across
+the video ($\mathrm{{round}}(\mathrm{{linspace}}(0,N{{-}}1,32))$), scaled to a maximum dimension of 448\,px,
+using greedy decoding with up to 48 tokens. Prompts follow the standard VSI-Bench evaluation harness.
+We report official strict accuracy (ACC) and Mean Relative Accuracy (MRA), alongside a lenient parser
+that extracts numbers written as words or embedded in explanatory text.
 
 \vspace{{2pt}}
-\noindent\textbf{{Protocol.}} Qwen3-VL-8B-Instruct, Gemma-4-12B-it and Molmo2-8B (all Apache-2.0, run
-locally on one H100; torch 2.14.1+cu126, transformers 5.22.1 / 4.57.1, driver 580.178.04). Tasks on
-their full sets: \texttt{{route\_planning}} (Cat.~1, ACC, $n{{=}}194$),
-\texttt{{object\_abs\_distance}} (Cat.~2, MRA, $n{{=}}834$), \texttt{{room\_size\_estimation}}
-(Cat.~2, MRA, $n{{=}}288$). Official ACC/MRA copied verbatim; 95\% CI by bootstrapping over scenes.
-A \emph{{blind}} arm repeats the numeric tasks with no frames.
+\noindent\textbf{{Protocol.}} Evaluated models include Qwen3-VL-8B-Instruct, Gemma-4-12B-it, and
+Molmo2-8B, run locally on a single NVIDIA H100 GPU (PyTorch 2.14.1, transformers 5.22.1 / 4.57.1).
+Tasks cover their full test splits: \texttt{{route\_planning}} (Category 1, ACC, $n{{=}}194$),
+\texttt{{object\_abs\_distance}} (Category 2, MRA, $n{{=}}834$), and \texttt{{room\_size\_estimation}}
+(Category 2, MRA, $n{{=}}288$). We report 95\% confidence intervals via scene-level bootstrapping.
+A blind control arm repeats all numeric tasks with blank image inputs to measure prior bias.
 
 \section{{Results}}
-Table~\ref{{tab:results}} reports every task on its full set. Qwen3-VL leads on all three; Gemma-4's
-strict numeric scores are near zero because its answers are prose that the official first-token
-parser discards, which the parenthesised lenient scores expose.
+Table~\ref{{tab:results}} summarizes performance across all three tasks. Qwen3-VL leads in every
+category. Gemma-4 scores near zero under strict evaluation because it responds in natural sentences
+rather than isolated tokens; our lenient parser extracts these values and shows the underlying scores.
 
 \vspace{{2pt}}
 \begin{{table}}[h]
 \centering
-\caption{{Main results (strict scorer, 95\% CI over scenes). Parenthesised values show the lenient
-parser where it differs by more than 15 points.}}
+\caption{{Main results (strict scorer, 95\% CI over scenes). Values in parentheses show lenient parser
+results when they differ by more than 15 percentage points.}}
 \label{{tab:results}}
 \small
 {results_table(scores)}
 \end{{table}}
 
-The blind control quantifies how much of each score is prior recall. Qwen3-VL retains 30.6 and 32.9
-MRA with no image; Gemma-4 retains nothing; Molmo2-8B scores \emph{{higher}} blind on room size
-(32.0 vs 11.5) because a constant guess is a good hedge against a ground truth centred near
-20\,m$^2$.
+The blind evaluation shows how much performance relies on dataset statistics rather than visual evidence.
+Qwen3-VL scores 30.6 and 32.9 MRA without images. Gemma-4 refuses to answer without visual context,
+scoring zero. Molmo2-8B scores higher blind on room size (32.0 vs 11.5) by predicting a constant
+20\,m$^2$, which closely matches the dataset median.
 
 \vspace{{2pt}}
-\noindent\textbf{{Numeric diagnostics.}} A model that measures should track the ground truth
-($r>0$) with comparable spread; $r\approx0$ with $\sigma_{{\hat{{y}}}}/\sigma_y\ll1$ is prior
-anchoring.
+\noindent\textbf{{Numeric diagnostics.}} To evaluate metric reasoning, we report the correlation between
+predictions and ground truth ($r$), prediction variance relative to ground truth ($\sigma_{{\hat{{y}}}}/\sigma_y$),
+parser failure rate, and median absolute relative error.
 
 \vspace{{2pt}}
 \begin{{center}}\begin{{tabular}}{{@{{}}llrrrr@{{}}}}
@@ -300,17 +298,17 @@ Model & Task & $r$ & $\sigma_{{\hat{{y}}}}/\sigma_y$ & Parse fail. & Med.\ rel.\
 \end{{tabular}}\end{{center}}
 
 \section{{Failure analysis}}
-The five panels below are representative failures, each showing the frames the model saw with their
-source indices, the question, the ground truth and the prediction. Table~2 groups
-{n_fail} failing questions into four categories.
+The panels below illustrate five representative failure cases, displaying input frames with timing indices,
+the question, ground truth, and model prediction. Table~2 categorizes {n_fail} failures across four
+primary mechanisms.
 
 \vspace{{2pt}}
 {figures(panels)}
 
 \vspace{{2pt}}
 \begin{{center}}
-\footnotesize\textbf{{Table 2:}} Failure taxonomy. Near misses inside 30\% relative error are
-excluded, since MRA already gives them partial credit.\par\vspace{{2pt}}
+\footnotesize\textbf{{Table 2:}} Failure taxonomy. Near misses within 30\% relative error are excluded,
+as MRA awards partial credit in that range.\par\vspace{{2pt}}
 {tax}
 \end{{center}}
 
