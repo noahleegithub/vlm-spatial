@@ -44,7 +44,7 @@ rm -f "$SMOKE_OUT"                # smoke is a fresh 4-question check every time
 # Keep the exit status so failures are visible in the job state, but still print
 # the rows below to show which processor/content-key form failed.
 set +e
-python scripts/03_infer.py --model "$MODEL" \
+python -u scripts/03_infer.py --model "$MODEL" \
     --tasks route_planning,object_abs_distance \
     --limit 2 --out "$SMOKE_OUT"
 rc=$?

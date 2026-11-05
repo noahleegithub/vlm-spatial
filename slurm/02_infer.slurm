@@ -37,7 +37,7 @@ source envs/activate.sh "$MODEL"
 python -c "import torch,transformers;print('torch',torch.__version__,'tf',transformers.__version__)"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
-python scripts/03_infer.py --model "$MODEL" \
+python -u scripts/03_infer.py --model "$MODEL" \
     --tasks route_planning,object_abs_distance,room_size_estimation \
     --out "$VSI_ROOT/results/${MODEL}.jsonl"
 

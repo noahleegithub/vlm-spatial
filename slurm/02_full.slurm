@@ -45,13 +45,13 @@ for MODEL in $MODELS; do
   echo "=================== $MODEL: full run $(date -u +%H:%M:%S)"
   # shellcheck disable=SC1091
   source envs/activate.sh "$MODEL" >/dev/null
-  python scripts/03_infer.py --model "$MODEL" \
+  python -u scripts/03_infer.py --model "$MODEL" \
       --tasks route_planning,object_abs_distance,room_size_estimation \
       --out "$VSI_ROOT/results/${MODEL}.jsonl"
   rc=$?; [ "$rc" -ne 0 ] && rc_total=$rc
 
   echo "------------------- $MODEL: blind arm $(date -u +%H:%M:%S)"
-  python scripts/03_infer.py --model "$MODEL" --blind \
+  python -u scripts/03_infer.py --model "$MODEL" --blind \
       --tasks object_abs_distance,room_size_estimation \
       --out "$VSI_ROOT/results/${MODEL}_blind.jsonl"
   rc=$?; [ "$rc" -ne 0 ] && rc_total=$rc

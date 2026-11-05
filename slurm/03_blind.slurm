@@ -31,7 +31,7 @@ fi
 source envs/aces_modules.sh
 source envs/activate.sh "$MODEL"
 
-python scripts/03_infer.py --model "$MODEL" --blind \
+python -u scripts/03_infer.py --model "$MODEL" --blind \
     --tasks object_abs_distance,room_size_estimation \
     --out "$VSI_ROOT/results/${MODEL}_blind.jsonl"
 
