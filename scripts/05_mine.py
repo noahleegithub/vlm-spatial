@@ -93,7 +93,7 @@ def load_all(paths: list[Path]) -> list[dict]:
     return rows
 
 
-def render(r: dict, out_path: Path) -> None:
+def render(r: dict, out_path: Path, label: str | None = None) -> None:
     """Print-sized panel: 960 px wide with ~30 px text.
 
     The size is not arbitrary. At 3.6 in printed width (half of a letter page in
@@ -112,7 +112,8 @@ def render(r: dict, out_path: Path) -> None:
                 pass
         return ImageFont.load_default()
 
-    f_small, f_body, f_head = font(20), font(30), font(32)
+    _fs = int(os.environ.get("VSI_PANEL_FONT_SZ", "30"))
+    f_small, f_body, f_head = font(round(_fs * 0.67)), font(_fs), font(round(_fs * 1.07))
     frames = C.frame_paths(r["dataset"], r["scene"])
     idx = (r.get("source_frame_indices") or list(range(len(frames))))
     step = max(1, len(frames) // N_SHOWN)
@@ -133,9 +134,11 @@ def render(r: dict, out_path: Path) -> None:
         return (f"GT {r.get('ground_truth','')}   ·   "
                 f"Pred {(r.get('raw_output') or '').strip()[:60]}")
 
-    q_lines = textwrap.wrap(f"Q: {r.get('question','')}", width=wrapw)[:4]
+    _q = textwrap.wrap(f"Q: {r.get('question','')}", width=wrapw)
+    q_lines = _q[:3] + (["\u2026"] if len(_q) > 3 else [])
     ans_lines = textwrap.wrap(wrap_ans(), width=wrapw)[:2]
-    head = f"{r['model']}  ·  {r['task']}  ·  {r['scene']}"
+    head = f"{label}  ·  {r['model']}  ·  {r['task']}" if label else \
+           f"{r['model']}  ·  {r['task']}  ·  {r['scene']}"
     H = strip_y + strip_h + 10 + 38 + 36 * (len(q_lines) + len(ans_lines)) + pad
 
     img = Image.new("RGB", (W, H), (252, 252, 252))
@@ -246,7 +249,7 @@ def main() -> int:
     for r in sel:
         c = classify(r, medians.get(r["task"])) or "unclassified"
         name = f"{c}_{r['model']}_{r['task']}_{r['id']}.png"
-        render(r, Path(args.out) / name)
+        render(r, Path(args.out) / name, label=c.replace('_', ' '))
         index[name] = {"class": c, "model": r["model"], "task": r["task"], "id": r["id"]}
     if index:
         idx_path = Path(args.out) / "index.json"
