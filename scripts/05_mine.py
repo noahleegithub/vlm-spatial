@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import textwrap
 from collections import Counter, defaultdict
@@ -32,6 +33,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from vsibench_eval import common as C  # noqa: E402
 
 N_SHOWN = int(__import__("os").environ.get("VSI_PANEL_FRAMES", "6"))
+
+# A model that declines to answer is not making a scale error, and it is not a
+# formatting problem either: it is abstention, and it deserves its own class.
+_REFUSAL = re.compile(
+    r"cannot (?:determine|provide|estimate|tell)|can't (?:determine|provide|estimate)|"
+    r"unable to|not (?:possible|able|enough information)|insufficient information|"
+    r"don't know|do not know|no way to",
+    re.IGNORECASE)
 
 
 def classify(r: dict, task_median_pred: float | None) -> str | None:
@@ -48,6 +57,9 @@ def classify(r: dict, task_median_pred: float | None) -> str | None:
     # 1. the answer was right in substance but the official scorer could not see it
     if lenient > 0.999 and strict < 0.5:
         return "format_or_unit"
+
+    if _REFUSAL.search(raw):
+        return "refusal"
 
     if r["task"] == "route_planning":
         if pred and pred != r["ground_truth"]:

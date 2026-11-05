@@ -259,21 +259,36 @@ def taxonomy_block() -> str:
         c = r["failure_class"]
         counts[c] = counts.get(c, 0) + 1
         examples.setdefault(c, []).append(r)
+    # Five detection buckets roll up into the four categories the brief allows.
+    group = {"refusal": "Refusal / abstention",
+             "scale_confusion": "Scale confusion",
+             "scale_prior_anchor": "Scale confusion",
+             "egocentric_direction": "Egocentric direction",
+             "format_or_unit": "Answer format"}
+    merged: dict[str, int] = {}
+    for c, n in counts.items():
+        merged[group.get(c, c)] = merged.get(group.get(c, c), 0) + n
+    counts = merged
+
     desc = {
-        "format_or_unit": "Answer is right in substance but the official first-token parser "
-                          "cannot see it (prose, unit change, reasoning-channel wrapper).",
+        "Refusal / abstention": "The model declines to answer. Not a scale error and not a "
+                                "formatting artifact: no estimate is produced at all.",
+        "Answer format": "Right in substance but invisible to the official first-token parser "
+                         "(prose, unit change, turn/channel markers). Quantified by the "
+                         "strict-vs-lenient gap, not by the failure gallery.",
         "scale_prior_anchor": "Prediction sits near a canonical object/room prior while ground "
                               "truth varies — consistent with answering from memory, not measurement.",
-        "scale_confusion": "Large metric error that is not pinned to a prior: the model commits to a "
-                           "plausible-looking magnitude that the scene does not support.",
-        "egocentric_direction": "Wrong turn sequence in route planning: a left/right mirror or a "
-                                "failure to accumulate heading across frames.",
-        "tolerance_boundary": "Directionally right (≤30% relative error) but outside enough MRA "
-                              "thresholds to score low.",
+        "Scale confusion": "Large metric error: the model commits to a plausible-looking magnitude "
+                           "the scene does not support. Prior-pinned answers are the subset of these "
+                           "that land near the task's own median.",
+        "Egocentric direction": "Wrong turn sequence in route planning: a left/right mirror, a "
+                                "failure to accumulate heading across frames, or a letter prior "
+                                "(B and C over-predicted, A and D under-used).",
+
     }
     rows = []
     for c, n in sorted(counts.items(), key=lambda kv: -kv[1]):
-        rows.append(f"<tr><td><b>{c.replace('_', ' ')}</b></td><td class='num'>{n}</td>"
+        rows.append(f"<tr><td><b>{c}</b></td><td class='num'>{n}</td>"
                     f"<td>{desc.get(c, '')}</td></tr>")
     return ("<table><tr><th style='width:24%'>Class</th><th style='width:8%'>n</th>"
             "<th>Mechanism</th></tr>" + "".join(rows) + "</table>")
