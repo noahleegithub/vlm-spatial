@@ -40,6 +40,16 @@ TASK_LABEL = {
 }
 TASK_UNIT = {"route_planning": "ACC", "object_abs_distance": "MRA", "room_size_estimation": "MRA"}
 
+# Five detection buckets roll up into the four categories the brief allows;
+# the taxonomy table and the figure captions must agree, so both read this map.
+GROUP = {
+    "refusal": "Refusal / abstention",
+    "scale_confusion": "Scale confusion",
+    "scale_prior_anchor": "Scale confusion",
+    "egocentric_direction": "Egocentric direction",
+    "format_or_unit": "Answer format",
+}
+
 CSS = """
 @page { size: letter; margin: 0.45in; }
 * { box-sizing: border-box; }
@@ -259,15 +269,9 @@ def taxonomy_block() -> str:
         c = r["failure_class"]
         counts[c] = counts.get(c, 0) + 1
         examples.setdefault(c, []).append(r)
-    # Five detection buckets roll up into the four categories the brief allows.
-    group = {"refusal": "Refusal / abstention",
-             "scale_confusion": "Scale confusion",
-             "scale_prior_anchor": "Scale confusion",
-             "egocentric_direction": "Egocentric direction",
-             "format_or_unit": "Answer format"}
     merged: dict[str, int] = {}
     for c, n in counts.items():
-        merged[group.get(c, c)] = merged.get(group.get(c, c), 0) + n
+        merged[GROUP.get(c, c)] = merged.get(GROUP.get(c, c), 0) + n
     counts = merged
 
     desc = {
@@ -327,7 +331,7 @@ def gallery(panels: int) -> str:
             ref += f" · id {meta['id']}"
         cells.append(
             f"<div class='case'><img src='{img_b64(p)}'>"
-            f"<div class='cap'><b>Case {i} — {c.replace('_', ' ')}</b> "
+            f"<div class='cap'><b>Case {i} — {GROUP.get(c, c.replace('_', ' '))}</b> "
             f"<span class='muted'>{ref}</span></div></div>")
     return f"<div class='gallery'>{''.join(cells)}</div>"
 

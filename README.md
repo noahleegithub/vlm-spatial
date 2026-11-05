@@ -62,8 +62,9 @@ If an inference job exits on a few failed questions, resubmit the same `sbatch`
 command: successful rows are skipped and the error rows are retried.
 
 `report/report.html` is self-contained (images embedded). Print it: open in a browser,
-Ctrl-P, US Letter, no scaling, "print backgrounds" on. It is laid out for exactly two
-pages; if a longer run pushes it to three, re-run with `--compact`.
+Ctrl-P, US Letter, no scaling, "print backgrounds" on. It is laid out for exactly two pages. With the full three-model table, five
+figure panels and a populated taxonomy, build it with `--compact`, which is
+verified at 2 pages with ~2 inches of headroom for the discussion.
 
 ## Local dry run (no GPU, no torch)
 
