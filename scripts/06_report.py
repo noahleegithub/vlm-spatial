@@ -341,7 +341,8 @@ def build_html(panels: int, compact: bool = False) -> str:
 <body class="{"compact" if compact else ""}">
 <h1>Where vision-language models fail at 3D space: a VSI-Bench evaluation</h1>
 <p class="sub">{' · '.join(models) if models else 'Models: TBD'} &nbsp;|&nbsp;
-VSI-Bench, {n_total or '—'} questions over {meta['tasks'].get('route_planning', {}).get('n_scenes', '—')} scenes &nbsp;|&nbsp;
+VSI-Bench, {meta.get('n_questions_total') or n_total or '—'} questions over {
+        meta.get('n_scenes_total') or max((t.get('n_scenes', 0) for t in meta['tasks'].values()), default='—')} scenes &nbsp;|&nbsp;
 Multimodal Computer Vision — HW</p>
 
 <h2>Setup and protocol</h2>

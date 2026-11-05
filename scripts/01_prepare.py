@@ -159,6 +159,10 @@ def main() -> int:
                             "metric": C.TASKS[t]["metric"]}
         print(f"  {t:24s} n={len(sel):5d}  scenes={scenes:3d}  {by_ds}")
 
+    sel_all = [r for t in meta["tasks"] for r in rows
+               if r["question_type"] == t and r["dataset"] in datasets]
+    meta["n_questions_total"] = sum(v["n"] for v in meta["tasks"].values())
+    meta["n_scenes_total"] = len({r["scene_name"] for r in sel_all})
     (C.DATA_DIR / "manifest_meta.json").write_text(json.dumps(meta, indent=2))
     print(f"\nwrote manifests to {C.MANIFEST_DIR}")
     print(f"config digest: {C.config_digest()}")
