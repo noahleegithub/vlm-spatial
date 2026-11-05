@@ -302,6 +302,16 @@ def video_path(dataset: str, scene: str) -> Path:
     return VIDEO_DIR / dataset / f"{scene}.mp4"
 
 
+def set_frame_dir(path) -> None:
+    """Point frame lookups at a staged copy (e.g. node-local $TMPDIR).
+
+    Lustre round-trips per file make 32 frame opens the dominant cost at full
+    scale, even though they are invisible in the generate() timing.
+    """
+    global FRAME_DIR
+    FRAME_DIR = Path(path)
+
+
 def scene_frames_dir(dataset: str, scene: str) -> Path:
     return FRAME_DIR / dataset / scene
 

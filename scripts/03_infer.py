@@ -70,6 +70,18 @@ def main() -> int:
     print(f"{args.model}{' [BLIND]' if args.blind else ''}: {len(todo)} questions "
           f"-> {out_path}  ({len(done)} already done)")
 
+    # Frames are opened per question. Over Lustre that I/O can dwarf the model
+    # call, so copy the cache to node-local disk once when asked to.
+    if os.environ.get("VSI_STAGE_FRAMES") == "1" and not args.blind:
+        import shutil
+        stage = Path(os.environ.get("TMPDIR", "/tmp")) / "vsi_frames"
+        if not stage.exists():
+            t0 = time.time()
+            shutil.copytree(C.FRAME_DIR, stage)
+            n = sum(1 for _ in stage.rglob("*.jpg"))
+            print(f"staged {n} frames to {stage} in {time.time()-t0:.1f}s")
+        C.set_frame_dir(stage)
+
     from vsibench_eval.adapters import build_adapter, MODEL_IDS
     adapter = build_adapter(args.model).load()
     model_id = MODEL_IDS.get(args.model, "stub")
@@ -80,6 +92,7 @@ def main() -> int:
     for i, row in enumerate(todo, 1):
         scene = row["scene"]
         try:
+            _t_io = time.time()
             frames = [] if args.blind else C.frame_paths(row["dataset"], scene)
             fmeta_p = C.scene_frames_dir(row["dataset"], scene) / "frames.json"
             fmeta = json.loads(fmeta_p.read_text()) if fmeta_p.exists() else {}
@@ -108,6 +121,7 @@ def main() -> int:
                                  else C.fuzzy_matching(raw),
                 "lenient_parsed": C.lenient_parse(raw, row["question_type"], row["ground_truth"]),
                 "seconds": round(dt, 3),
+                "seconds_io": round(t1 - _t_io, 3),
                 "config_digest": C.config_digest(),
             }
         except Exception as e:                          # noqa: BLE001
