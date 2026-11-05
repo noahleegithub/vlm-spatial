@@ -19,19 +19,19 @@
 \begin{document}
 \small
 \maketitle
-\vspace{-14mm}
+\vspace{-16mm}
 
 \section{Setup and protocol}
 We evaluate three open-weight VLMs on VSI-Bench~\citep{yang2025thinking}, covering 1316 questions across
-288 indoor scenes from ScanNet and ScanNet++. Each model receives 32 frames sampled uniformly across
+288 indoor scenes from ScanNet~\citep{dai2017scannet} and ScanNet++~\citep{yeshwanth2023scannetpp}. Each model receives 32 frames sampled uniformly across
 the video ($\mathrm{round}(\mathrm{linspace}(0,N{-}1,32))$), scaled to a maximum dimension of 448\,px,
-using greedy decoding with up to 48 tokens. Prompts follow the standard VSI-Bench evaluation harness.
+using greedy decoding with up to 48 tokens. Prompts follow the standard VSI-Bench harness.
 We report official strict accuracy (ACC) and Mean Relative Accuracy (MRA), alongside a lenient parser
 that extracts numbers written as words or embedded in explanatory text.
 
 \vspace{2pt}
-\noindent\textbf{Protocol.} Evaluated models include Qwen3-VL-8B-Instruct, Gemma-4-12B-it, and
-Molmo2-8B, run locally on a single NVIDIA H100 GPU (PyTorch 2.14.1, transformers 5.22.1 / 4.57.1).
+\noindent\textbf{Protocol.} Evaluated models include Qwen3-VL-8B-Instruct~\citep{qwen2025qwen3vl}, Gemma-4-12B-it~\citep{gemma2026gemma4}, and
+Molmo2-8B~\citep{deitke2024molmo}, run locally on one NVIDIA H100 GPU (PyTorch 2.14.1, transformers 5.22.1 / 4.57.1).
 Tasks cover their full test splits: \texttt{route\_planning} (Category 1, ACC, $n{=}194$),
 \texttt{object\_abs\_distance} (Category 2, MRA, $n{=}834$), and \texttt{room\_size\_estimation}
 (Category 2, MRA, $n{=}288$). We report 95\% confidence intervals via scene-level bootstrapping.
@@ -93,38 +93,36 @@ The panels below illustrate five representative failure cases, displaying input 
 the question, ground truth, and model prediction. Table~2 categorizes 2789 failures across four
 primary mechanisms.
 
-\vspace{2pt}
 \noindent
-\begin{minipage}[t]{0.472\textwidth}
+\begin{minipage}[t]{0.460\textwidth}
 \centering
 \includegraphics[width=\linewidth]{egocentric_direction_gemma4_route_planning_4959.png}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.472\textwidth}
+\begin{minipage}[t]{0.460\textwidth}
 \centering
 \includegraphics[width=\linewidth]{format_or_unit_gemma4_route_planning_4963.png}
 \end{minipage}
-\par\smallskip
+\par\vspace{1pt}
 \noindent
-\begin{minipage}[t]{0.472\textwidth}
+\begin{minipage}[t]{0.460\textwidth}
 \centering
 \includegraphics[width=\linewidth]{refusal_gemma4_object_abs_distance_687.png}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.472\textwidth}
+\begin{minipage}[t]{0.460\textwidth}
 \centering
 \includegraphics[width=\linewidth]{scale_confusion_gemma4_object_abs_distance_690.png}
 \end{minipage}
-\par\smallskip
+\par\vspace{1pt}
 \noindent
-\begin{minipage}[t]{0.472\textwidth}
+\begin{minipage}[t]{0.460\textwidth}
 \centering
 \includegraphics[width=\linewidth]{scale_prior_anchor_gemma4_object_abs_distance_684.png}
 \end{minipage}
-\par\smallskip
+\par\vspace{1pt}
 
-\vspace{2pt}
 \begin{center}
 \footnotesize\textbf{Table 2:} Failure taxonomy. Near misses within 30\% relative error are excluded,
-as MRA awards partial credit in that range.\par\vspace{2pt}
+as MRA awards partial credit in that range.\par\vspace{1pt}
 {\scriptsize\begin{tabular}{@{}p{0.22\textwidth}rp{0.52\textwidth}@{}}
 \toprule
 Class & $n$ & Mechanism \\
@@ -138,17 +136,15 @@ Class & $n$ & Mechanism \\
 \end{center}
 
 \section{Discussion}
-Qwen3-VL-8B shows genuine visual estimation on the numeric tasks: it scores 47.9 MRA on distance and 57.1 on room size, and removing input video drops these scores by 17.3 and 24.2 points ($r=0.71$ and $0.81$). Even without video, however, it retains roughly 30 MRA by predicting typical indoor dimensions, showing that part of its score comes from dataset priors rather than image inspection. Gemma-4-12B avoids numeric guesses entirely on room size, refusing all 288 questions, and its 0.3 strict score on distances rises to 22.8 under lenient parsing because it answers in conversational sentences. Molmo2-8B correlates with room sizes ($r=0.74$) but scales estimates roughly $3\times$ too high; when blind, it outputs a constant 20\,m$^2$, which scores 32.0 MRA because MRA rewards guesses near the dataset median. All three models perform poorly on route planning (29.4--35.0\% ACC), partly because they systematically favor options B and C regardless of camera motion. Overall, feeding 32 downsampled frames without camera parameters leaves models guessing metric scale from visual priors, indicating that future benchmarks should evaluate explicit relative geometry rather than absolute scale estimation.
+Qwen3-VL-8B shows genuine visual estimation on the numeric tasks: it scores 47.9 MRA on distance and 57.1 on room size, and removing input video drops these scores by 17.3 and 24.2 points ($r=0.71$ and $0.81$). Even without video, however, it retains roughly 30 MRA by predicting typical indoor dimensions, showing that part of its score comes from dataset priors rather than image inspection. Gemma-4-12B avoids numeric guesses entirely on room size, refusing all 288 questions, and its 0.3 strict score on distances rises to 22.8 under lenient parsing because it answers in conversational sentences. Molmo2-8B correlates with room sizes ($r=0.74$) but scales estimates roughly $3\times$ too high; when blind, it outputs a constant 20\,m$^2$, which scores 32.0 MRA because MRA rewards guesses near the dataset median. All three models perform poorly on route planning (29.4--35.0\% ACC), partly because they systematically favor options B and C regardless of camera motion. Overall, feeding 32 downsampled frames without camera parameters leaves models guessing metric scale from visual priors; benchmarks with explicit 3D reconstruction supervision such as VLM-3R~\citep{fan2026vlm3r} highlight the need to evaluate relative geometry rather than ungrounded absolute scale estimation.
 
-{\scriptsize\begin{thebibliography}{9}
-\footnotesize
-\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{2pt}
-\bibitem[Yang et al.(2025)]{yang2025thinking} J.~Yang et al. \newblock Thinking in Space: How
-Multimodal LLMs See, Remember and Recall Spaces. \newblock CVPR 2025. arXiv:2412.14171.
-\bibitem[Model cards(2025--26)]{cards} Qwen Team; Google DeepMind; Ai2. \newblock Qwen3-VL,
-Gemma 4 and Molmo 2 model cards (Hugging Face).
-\bibitem[Fan et al.(2026)]{vlm3r} Z.~Fan et al. \newblock VLM-3R: Vision-Language Models
-Augmented with Instruction-Aligned 3D Reconstruction. \newblock CVPR 2026.
-\end{thebibliography}}
+\vspace{-2pt}
+\bibliographystyle{abbrvnat}
+\begingroup
+\scriptsize
+\setlength{\bibsep}{0pt}
+\setlength{\parskip}{0pt}
+\bibliography{references}
+\endgroup
 
 \end{document}

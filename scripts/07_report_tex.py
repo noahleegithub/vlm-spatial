@@ -189,7 +189,7 @@ def figures(n: int = 5) -> str:
         # The panel header already names the class, model and task, so no extra
         # LaTeX caption line is needed (each one costs ~0.15in).
         cells.append(
-            "\\begin{minipage}[t]{0.472\\textwidth}\n\\centering\n"
+            "\\begin{minipage}[t]{0.460\\textwidth}\n\\centering\n"
             f"\\includegraphics[width=\\linewidth]{{{p.name}}}\n"
             "\\end{minipage}")
     # Rows are separate paragraphs, not one figure float: a float cannot break
@@ -198,7 +198,7 @@ def figures(n: int = 5) -> str:
     rows = []
     for i in range(0, len(cells), 2):
         pair = cells[i:i + 2]
-        rows.append("\\noindent\n" + "\\hfill\n".join(pair) + "\n\\par\\smallskip")
+        rows.append("\\noindent\n" + "\\hfill\n".join(pair) + "\n\\par\\vspace{1pt}")
     return "\n".join(rows)
 
 
@@ -220,8 +220,9 @@ def build(panels: int) -> str:
         r"32.0 MRA because MRA rewards guesses near the dataset median. All three models perform poorly "
         r"on route planning (29.4--35.0\% ACC), partly because they systematically favor options B and C "
         r"regardless of camera motion. Overall, feeding 32 downsampled frames without camera parameters "
-        r"leaves models guessing metric scale from visual priors, indicating that future benchmarks should "
-        r"evaluate explicit relative geometry rather than absolute scale estimation."
+        r"leaves models guessing metric scale from visual priors; benchmarks with explicit 3D reconstruction "
+        r"supervision such as VLM-3R~\citep{fan2026vlm3r} highlight the need to evaluate relative geometry "
+        r"rather than ungrounded absolute scale estimation."
     )
 
     return rf"""\documentclass{{article}}
@@ -245,19 +246,19 @@ def build(panels: int) -> str:
 \begin{{document}}
 \small
 \maketitle
-\vspace{{-14mm}}
+\vspace{{-16mm}}
 
 \section{{Setup and protocol}}
 We evaluate three open-weight VLMs on VSI-Bench~\citep{{yang2025thinking}}, covering {n_q} questions across
-{n_sc} indoor scenes from ScanNet and ScanNet++. Each model receives 32 frames sampled uniformly across
+{n_sc} indoor scenes from ScanNet~\citep{{dai2017scannet}} and ScanNet++~\citep{{yeshwanth2023scannetpp}}. Each model receives 32 frames sampled uniformly across
 the video ($\mathrm{{round}}(\mathrm{{linspace}}(0,N{{-}}1,32))$), scaled to a maximum dimension of 448\,px,
-using greedy decoding with up to 48 tokens. Prompts follow the standard VSI-Bench evaluation harness.
+using greedy decoding with up to 48 tokens. Prompts follow the standard VSI-Bench harness.
 We report official strict accuracy (ACC) and Mean Relative Accuracy (MRA), alongside a lenient parser
 that extracts numbers written as words or embedded in explanatory text.
 
 \vspace{{2pt}}
-\noindent\textbf{{Protocol.}} Evaluated models include Qwen3-VL-8B-Instruct, Gemma-4-12B-it, and
-Molmo2-8B, run locally on a single NVIDIA H100 GPU (PyTorch 2.14.1, transformers 5.22.1 / 4.57.1).
+\noindent\textbf{{Protocol.}} Evaluated models include Qwen3-VL-8B-Instruct~\citep{{qwen2025qwen3vl}}, Gemma-4-12B-it~\citep{{gemma2026gemma4}}, and
+Molmo2-8B~\citep{{deitke2024molmo}}, run locally on one NVIDIA H100 GPU (PyTorch 2.14.1, transformers 5.22.1 / 4.57.1).
 Tasks cover their full test splits: \texttt{{route\_planning}} (Category 1, ACC, $n{{=}}194$),
 \texttt{{object\_abs\_distance}} (Category 2, MRA, $n{{=}}834$), and \texttt{{room\_size\_estimation}}
 (Category 2, MRA, $n{{=}}288$). We report 95\% confidence intervals via scene-level bootstrapping.
@@ -302,29 +303,25 @@ The panels below illustrate five representative failure cases, displaying input 
 the question, ground truth, and model prediction. Table~2 categorizes {n_fail} failures across four
 primary mechanisms.
 
-\vspace{{2pt}}
 {figures(panels)}
 
-\vspace{{2pt}}
 \begin{{center}}
 \footnotesize\textbf{{Table 2:}} Failure taxonomy. Near misses within 30\% relative error are excluded,
-as MRA awards partial credit in that range.\par\vspace{{2pt}}
+as MRA awards partial credit in that range.\par\vspace{{1pt}}
 {tax}
 \end{{center}}
 
 \section{{Discussion}}
 {disc}
 
-{{\scriptsize\begin{{thebibliography}}{{9}}
-\footnotesize
-\setlength{{\itemsep}}{{0pt}}\setlength{{\parsep}}{{0pt}}\setlength{{\topsep}}{{2pt}}
-\bibitem[Yang et al.(2025)]{{yang2025thinking}} J.~Yang et al. \newblock Thinking in Space: How
-Multimodal LLMs See, Remember and Recall Spaces. \newblock CVPR 2025. arXiv:2412.14171.
-\bibitem[Model cards(2025--26)]{{cards}} Qwen Team; Google DeepMind; Ai2. \newblock Qwen3-VL,
-Gemma 4 and Molmo 2 model cards (Hugging Face).
-\bibitem[Fan et al.(2026)]{{vlm3r}} Z.~Fan et al. \newblock VLM-3R: Vision-Language Models
-Augmented with Instruction-Aligned 3D Reconstruction. \newblock CVPR 2026.
-\end{{thebibliography}}}}
+\vspace{{-2pt}}
+\bibliographystyle{{abbrvnat}}
+\begingroup
+\scriptsize
+\setlength{{\bibsep}}{{0pt}}
+\setlength{{\parskip}}{{0pt}}
+\bibliography{{references}}
+\endgroup
 
 \end{{document}}
 """
