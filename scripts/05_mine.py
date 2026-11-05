@@ -57,15 +57,20 @@ def classify(r: dict, task_median_pred: float | None) -> str | None:
     # numeric tasks
     if pred is None:
         return "format_or_unit"
-    if gt and gt > 0:
-        rel = abs(pred - gt) / gt
-        if task_median_pred and gt > 0:
-            if abs(pred - task_median_pred) / task_median_pred < 0.15 and rel > 0.30:
-                return "scale_prior_anchor"
-        if rel < 0.30:
-            return "tolerance_boundary"               # close but outside thresholds
+    if not (gt and gt > 0):
+        return None
+    rel = abs(pred - gt) / gt
+    # MRA gives partial credit, so a 10%-error answer is not a failure case.
+    # Treat anything within 30% relative error (roughly MRA >= 0.5) as a near
+    # miss and keep the gallery for answers that are actually wrong.
+    if rel < 0.30:
+        return None
+    # A prediction pinned near the task's own median while the true value is far
+    # away is the prior-anchoring signature; everything else is a plain scale
+    # error.
+    if task_median_pred and abs(pred - task_median_pred) / task_median_pred < 0.15:
         return "scale_prior_anchor"
-    return None
+    return "scale_confusion"
 
 
 def load_all(paths: list[Path]) -> list[dict]:

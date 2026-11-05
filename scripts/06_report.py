@@ -264,6 +264,8 @@ def taxonomy_block() -> str:
                           "cannot see it (prose, unit change, reasoning-channel wrapper).",
         "scale_prior_anchor": "Prediction sits near a canonical object/room prior while ground "
                               "truth varies — consistent with answering from memory, not measurement.",
+        "scale_confusion": "Large metric error that is not pinned to a prior: the model commits to a "
+                           "plausible-looking magnitude that the scene does not support.",
         "egocentric_direction": "Wrong turn sequence in route planning: a left/right mirror or a "
                                 "failure to accumulate heading across frames.",
         "tolerance_boundary": "Directionally right (≤30% relative error) but outside enough MRA "
