@@ -7,8 +7,10 @@ results/
 report/*.html
 report/neurips/main.xdv
 report/neurips/main.log
-report/neurips/failures/
 report/neurips/main.pdf
+report/neurips/*.blg
+report/neurips/*.bak
+report/neurips/main.aux
 report/neurips/main.tex
 
 # Python / scheduler noise

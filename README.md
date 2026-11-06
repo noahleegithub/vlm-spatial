@@ -50,8 +50,8 @@ source envs/aces_modules.sh                     # if this is a new shell
 source envs/activate.sh qwen3vl
 bash envs/freeze.sh                              # -> envs/lock-<date>.txt (record these versions)
 python scripts/04_score.py                       # -> results/scores.csv, table.md, stats.json
-python scripts/05_mine.py --list                 # failure candidates by class
-python scripts/05_mine.py --per-category 2       # -> results/failures/*.png + index.json
+python scripts/05_mine.py                        # -> results/failures/candidates.jsonl
+python scripts/05_mine.py --show-cases           # print the five report cases
 python scripts/06_report.py                      # -> report/report.html (print to PDF)
 ```
 
@@ -63,21 +63,21 @@ command: successful rows are skipped and the error rows are retried.
 
 `report/neurips/main.pdf` is the NeurIPS-2026-format version (same two pages, same numbers):
 `python scripts/07_report_tex.py && ~/.local/bin/tectonic -X compile report/neurips/main.tex`.
-It needs the style file `report/neurips_2026.sty` and a tectonic binary; panels are re-rendered at
-`VSI_PANEL_WIDTH=720 VSI_PANEL_FONT_SZ=34` so they read at ~9pt when placed two-up in the 5.5in
-text block.
+It needs the style file `report/neurips_2026.sty` and a tectonic binary. Failure cases are typeset
+as text cards, not images: each card shows the exact prompt, the full response, the model checkpoint,
+and the ground truth.
 
-`report/report.html` is self-contained (images embedded). Print it: open in a browser,
-Ctrl-P, US Letter, no scaling, "print backgrounds" on. It is laid out for exactly two pages. With the full three-model table, five
-figure panels and a populated taxonomy, build it with `--compact`, which is
-verified at 2 pages with ~2 inches of headroom for the discussion.
+`report/report.html` is a single self-contained file. Print it: open in a browser,
+Ctrl-P, US Letter, no scaling, "print backgrounds" on. It is built for two pages. With the full three-model table, five
+failure cards and a populated taxonomy, build it with `--compact` and check the
+browser's print preview before submitting.
 
 ## Local dry run (no GPU, no torch)
 
 The whole data path, prompt construction and scoring can be exercised without a
 GPU. This is exactly what was validated before handing the project over. On
 ACES, activate the venv first (`source envs/activate.sh qwen3vl`); on a laptop,
-use a Python with `numpy` and `Pillow`. If you run this on ACES, point
+use a Python with `numpy`. If you run this on ACES, point
 `VSI_ROOT` at a separate scratch directory
 (`export VSI_ROOT=$SCRATCH/vsi_dryrun`) so the dry-run manifests do not replace
 the full ones:
@@ -87,7 +87,7 @@ python scripts/01_prepare.py --datasets scannetpp
 python scripts/02_frames.py --limit-scenes 50   # all 50 ScanNet++ scenes
 python scripts/03_infer.py --model stub --limit 6
 python scripts/04_score.py
-python scripts/05_mine.py --per-category 1
+python scripts/05_mine.py --show-cases
 ```
 
 `--model stub` returns canned answers but still walks the real frame loader,
@@ -98,13 +98,14 @@ prompt builder and both scorers.
 ```
 envs/aces_modules.sh        ACES module stack (GCCcore + Python 3.12)
 vsibench_eval/common.py     config, verbatim official metrics, lenient parser, bootstrap CI
+vsibench_eval/failure_cases.py  curated failure selection + prompt/GT formatting
 vsibench_eval/adapters.py   the three model adapters + a StubAdapter for dry runs
 scripts/00_selftest.py      asserts the metric code, prompts and parser (no GPU)
 scripts/01_prepare.py       fetch + verify + write task manifests
 scripts/02_frames.py        deterministic 32-frame extraction (ffmpeg select)
 scripts/03_infer.py         inference, one JSON row per question, resume-safe
 scripts/04_score.py         ACC/MRA + cluster-bootstrap CI + diagnostics
-scripts/05_mine.py          failure classification + print-sized figure panels
+scripts/05_mine.py          failure classification + candidates.jsonl
 scripts/06_report.py        assembles the 2-page printable report
 slurm/                      job scripts (ACES: --partition=gpu --gres=gpu:h100:1)
 ```
@@ -135,9 +136,9 @@ slurm/                      job scripts (ACES: --partition=gpu --gres=gpu:h100:1
   blind jobs write only their own JSONL; scoring is run once at the end.
 * Blind-arm rows are scored (model label `<model>_blind`) and shown in the
   report's control table, but `05_mine.py` excludes them from failure mining by
-  default: they were produced without frames, so a panel built from one would
-  show video the model never saw. Use `--include-blind` only if you want
-  prior-anchoring cases and will caption them as such.
+  default: they are the no-image control, not examples of normal failure. Use
+  `--include-blind` only if you want prior-anchoring cases and will label them
+  as such.
 * `envs/setup_envs.sh` does not pin `transformers` for the `main` env, so a
   rebuild months later can resolve differently. Run `bash envs/freeze.sh` after
   the smoke test and quote those versions in the report.

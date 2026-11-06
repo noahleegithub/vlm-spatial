@@ -17,6 +17,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from vsibench_eval import common as C  # noqa: E402
+from vsibench_eval import failure_cases as F  # noqa: E402
 
 fails: list[str] = []
 
@@ -91,6 +92,18 @@ check("MCA prompt",
 check("blind prompt drops the frame prefix",
       C.build_prompt(na_row, with_video=False).startswith("How far"),
       True)
+
+print("== failure-case card formatting")
+check("numeric GT gets its unit",
+      F.ground_truth_text({"ground_truth": "2.1", "task": "object_abs_distance"}), "2.1 m")
+check("area GT gets m^2",
+      F.ground_truth_text({"ground_truth": "26.4", "task": "room_size_estimation"}), "26.4 m²")
+check("MCA GT expands to the full option",
+      F.ground_truth_text({"ground_truth": "A", "task": "route_planning",
+                           "options": ["A. Turn Back", "B. Turn Left"]}), "A. Turn Back")
+check("checkpoint label is unambiguous",
+      F.model_id_label({"model": "gemma4", "model_id": "google/gemma-4-12B-it"}),
+      "google/gemma-4-12B-it")
 
 print("== clustered bootstrap")
 pairs = [("s1", 1.0)] * 10 + [("s2", 0.0)] * 10

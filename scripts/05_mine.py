@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
-"""Step 5 -- mine failure cases and render the figure panels for the report.
+"""Step 5 -- mine failure cases for the reports.
 
-    python scripts/05_mine.py --list                 # candidates only, no images
-    python scripts/05_mine.py --per-category 2       # render 2 examples per class
-    python scripts/05_mine.py --ids 41,233,900       # render specific question ids
+    python scripts/05_mine.py                  # -> results/failures/candidates.jsonl
+    python scripts/05_mine.py --list           # list one candidate per class
+    python scripts/05_mine.py --show-cases     # print the five report cases
 
 With no explicit paths, smoke runs and dry-run stub rows are skipped when real
 model results are present.
 
-Each rendered PNG is a single self-contained panel: an 8-frame filmstrip of the
-actual input (labelled with the source frame index), then the question, the
-ground truth, and the model's raw answer. Those panels are what the report
-needs -- "visual input, question, ground truth, and model prediction".
-
+The reports typeset these rows as text cards (exact prompt, full response,
+model, ground truth) in both HTML and LaTeX; no frame images are rendered here.
 Failure classes are heuristics over the result rows so that selection is
 reproducible rather than hand-picked. They are starting points for the
 analysis, not conclusions.
@@ -22,18 +19,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
-import textwrap
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from vsibench_eval import common as C  # noqa: E402
-
-N_SHOWN = int(__import__("os").environ.get("VSI_PANEL_FRAMES", "6"))
+from vsibench_eval import failure_cases as F  # noqa: E402
 
 # A model that declines to answer is not making a scale error, and it is not a
 # formatting problem either: it is abstention, and it deserves its own class.
@@ -75,7 +69,7 @@ def classify(r: dict, task_median_pred: float | None) -> str | None:
     rel = abs(pred - gt) / gt
     # MRA gives partial credit, so a 10%-error answer is not a failure case.
     # Treat anything within 30% relative error (roughly MRA >= 0.5) as a near
-    # miss and keep the gallery for answers that are actually wrong.
+    # miss and keep the cards for answers that are actually wrong.
     if rel < 0.30:
         return None
     # A prediction pinned near the task's own median while the true value is far
@@ -93,91 +87,14 @@ def load_all(paths: list[Path]) -> list[dict]:
     return rows
 
 
-def render(r: dict, out_path: Path, label: str | None = None) -> None:
-    """Print-sized panel: 960 px wide with ~30 px text.
-
-    The size is not arbitrary. At 3.6 in printed width (half of a letter page in
-    a two-column gallery) a 960 px image renders at 267 dpi, so a 30 px glyph
-    lands at 30 * 72 / 267 = 8.1 pt -- legible. Screenshot-scale panels with
-    9 px text become unreadable 2 pt smudges in the PDF.
-    """
-    from PIL import Image, ImageDraw, ImageFont
-
-    def font(sz):
-        for cand in ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                     "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"):
-            try:
-                return ImageFont.truetype(cand, sz)
-            except OSError:
-                pass
-        return ImageFont.load_default()
-
-    _fs = int(os.environ.get("VSI_PANEL_FONT_SZ", "30"))
-    f_small, f_body, f_head = font(round(_fs * 0.67)), font(_fs), font(round(_fs * 1.07))
-    frames = C.frame_paths(r["dataset"], r["scene"])
-    idx = (r.get("source_frame_indices") or list(range(len(frames))))
-    step = max(1, len(frames) // N_SHOWN)
-    pick = list(range(0, min(len(frames), step * N_SHOWN), step))[:N_SHOWN]
-
-    # Width is a print decision: at 960 px the panel reads at ~8 pt across a
-    # 3.6 in column (HTML report); at 720 px it reads the same across 2.65 in
-    # (two-up in NeurIPS' 5.5 in text block). Font sizes stay fixed on purpose.
-    W = int(os.environ.get("VSI_PANEL_WIDTH", "960"))
-    wrapw = max(30, int(64 * W / 960))
-    pad, gap = 10, 2
-    thumb_w = (W - 2 * pad - gap * (len(pick) - 1)) // len(pick)
-    thumb_h = int(thumb_w * 0.62)
-    strip_h = thumb_h + 26
-    strip_y = pad
-
-    def wrap_ans():
-        return (f"GT {r.get('ground_truth','')}   ·   "
-                f"Pred {(r.get('raw_output') or '').strip()[:60]}")
-
-    _q = textwrap.wrap(f"Q: {r.get('question','')}", width=wrapw)
-    q_lines = _q[:3] + (["\u2026"] if len(_q) > 3 else [])
-    ans_lines = textwrap.wrap(wrap_ans(), width=wrapw)[:2]
-    head = f"{label}  ·  {r['model']}  ·  {r['task']}" if label else \
-           f"{r['model']}  ·  {r['task']}  ·  {r['scene']}"
-    H = strip_y + strip_h + 10 + 38 + 36 * (len(q_lines) + len(ans_lines)) + pad
-
-    img = Image.new("RGB", (W, H), (252, 252, 252))
-    d = ImageDraw.Draw(img)
-
-    for k, fi in enumerate(pick):
-        cx = pad + k * (thumb_w + gap)
-        im = Image.open(frames[fi]).convert("RGB")
-        scale = max(thumb_w / im.width, thumb_h / im.height)
-        im = im.resize((int(im.width * scale) + 1, int(im.height * scale) + 1))
-        left = (im.width - thumb_w) // 2
-        top = (im.height - thumb_h) // 2
-        img.paste(im.crop((left, top, left + thumb_w, top + thumb_h)), (cx, strip_y))
-        label = f"{idx[fi]}" if fi < len(idx) else f"{fi}"
-        d.text((cx + 2, strip_y + thumb_h + 4), label, fill=(90, 90, 90), font=f_small)
-
-    y = strip_y + strip_h + 10
-    d.text((pad, y), head, fill=(0, 0, 0), font=f_head)
-    y += 38
-    for line in q_lines:
-        d.text((pad, y), line, fill=(25, 25, 25), font=f_body)
-        y += 36
-    for line in ans_lines:
-        d.text((pad, y), line, fill=(20, 20, 20), font=f_body)
-        y += 36
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    img.save(out_path)
-    print(f"  wrote {out_path.name}  ({img.width}x{img.height})")
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("paths", nargs="*")
-    ap.add_argument("--per-category", type=int, default=0)
-    ap.add_argument("--ids", default="")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--show-cases", action="store_true",
+                    help="print the five failure cases used by the reports")
     ap.add_argument("--include-blind", action="store_true",
-                    help="also mine blind-arm rows (they have no visual input to show)")
+                    help="also mine blind-arm rows (control arm, no visual input)")
     ap.add_argument("--out", default=str(C.RESULTS_DIR / "failures"))
     args = ap.parse_args()
 
@@ -195,14 +112,13 @@ def main() -> int:
     if not rows:
         raise SystemExit("no results to mine")
 
-    # Blind-arm rows were produced without frames, so a panel built from them
-    # would show video the model never saw -- indefensible as "visual input" in
-    # a failure-case figure. They are scored in 04_score.py; keep them out of
-    # the gallery unless explicitly requested.
+    # Blind-arm rows are the no-image control, not examples of normal failure.
+    # They are scored in 04_score.py; keep them out of the report gallery unless
+    # explicitly requested.
     n_blind = sum(1 for r in rows if r.get("blind"))
     if n_blind and not args.include_blind:
         rows = [r for r in rows if not r.get("blind")]
-        print(f"excluding {n_blind} blind-arm rows (no visual input); "
+        print(f"excluding {n_blind} blind-arm rows (control arm); "
               f"use --include-blind to mine them anyway")
 
     medians = {}
@@ -237,26 +153,15 @@ def main() -> int:
             print(f"   GT={r['ground_truth']} pred={r.get('raw_output')!r}")
         return 0
 
-    sel: list[dict] = []
-    if args.ids:
-        want = {int(x) for x in args.ids.split(",") if x.strip()}
-        sel = [r for r in rows if r["id"] in want]
-    elif args.per_category:
-        for c, v in sorted(buckets.items()):
-            v = sorted(v, key=lambda r: (r["strict_score"], r["lenient_score"]))
-            sel += v[:args.per_category]
-    index = {}
-    for r in sel:
-        c = classify(r, medians.get(r["task"])) or "unclassified"
-        name = f"{c}_{r['model']}_{r['task']}_{r['id']}.png"
-        render(r, Path(args.out) / name, label=c.replace('_', ' '))
-        index[name] = {"class": c, "model": r["model"], "task": r["task"], "id": r["id"]}
-    if index:
-        idx_path = Path(args.out) / "index.json"
-        existing = json.loads(idx_path.read_text()) if idx_path.exists() else {}
-        existing.update(index)
-        idx_path.write_text(json.dumps(existing, indent=2))
-    print(f"\nrendered {len(sel)} panels into {args.out}")
+    if args.show_cases:
+        mined = [{**r, "failure_class": c}
+                 for c, v in buckets.items() for r in v]
+        for i, r in enumerate(F.select_cases(5, rows=mined), 1):
+            print(f"\nCase {i} -- {F.class_label(r)}")
+            print(f"  {F.model_id_label(r)} | {F.task_label(r)} | id {r['id']}")
+            print(f"  GT: {F.ground_truth_text(r)}")
+            print(f"  PROMPT:\n{F.prompt_text(r)}")
+            print(f"  RESPONSE:\n{F.response_text(r)}")
     return 0
 
 

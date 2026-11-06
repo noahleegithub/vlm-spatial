@@ -84,21 +84,6 @@ Package: booktabs 2020/01/12 v1.61803398 Publication quality tables
 \@thisruleclass=\count195
 \@lastruleclass=\count196
 \@thisrulewidth=\dimen159
-) (graphicx.sty
-Package: graphicx 2021/09/16 v1.2d Enhanced LaTeX Graphics (DPC,SPQR)
- (graphics.sty
-Package: graphics 2021/03/04 v1.4d Standard LaTeX Graphics (DPC,SPQR)
- (trig.sty
-Package: trig 2021/08/11 v1.11 sin cos tan (DPC)
-) (graphics.cfg
-File: graphics.cfg 2016/06/04 v1.11 sample graphics configuration
-)
-Package graphics Info: Driver file: xetex.def on input line 107.
- (xetex.def
-File: xetex.def 2021/03/18 v5.0k Graphics/color driver for xetex
-))
-\Gin@req@height=\dimen160
-\Gin@req@width=\dimen161
 ) (microtype.sty
 Package: microtype 2022/03/14 v3.0d Micro-typographical refinements (RS)
  (etoolbox.sty
@@ -112,7 +97,7 @@ LaTeX Info: Redefining \noprotrusionifhmode on input line 1027.
 LaTeX Info: Redefining \leftprotrusion on input line 1028.
 LaTeX Info: Redefining \rightprotrusion on input line 1036.
 LaTeX Info: Redefining \textls on input line 1195.
-\MT@outer@kern=\dimen162
+\MT@outer@kern=\dimen160
 LaTeX Info: Redefining \textmicrotypecontext on input line 1781.
 \MT@listname@count=\count199
  (microtype-xetex.def
@@ -120,21 +105,21 @@ File: microtype-xetex.def 2022/03/14 v3.0d Definitions specific to xetex (RS)
 LaTeX Info: Redefining \lsstyle on input line 236.
 )
 Package microtype Info: Loading configuration file microtype.cfg.
- (microtype.cfg
+
+(microtype.cfg
 File: microtype.cfg 2022/03/14 v3.0d microtype main configuration file (RS)
-))
-(caption.sty
+)) (caption.sty
 Package: caption 2022/03/01 v3.6b Customizing captions (AR)
  (caption3.sty
 Package: caption3 2022/03/17 v2.3b caption3 kernel (AR)
-\caption@tempdima=\dimen163
-\captionmargin=\dimen164
-\caption@leftmargin=\dimen165
-\caption@rightmargin=\dimen166
-\caption@width=\dimen167
-\caption@indent=\dimen168
-\caption@parindent=\dimen169
-\caption@hangindent=\dimen170
+\caption@tempdima=\dimen161
+\captionmargin=\dimen162
+\caption@leftmargin=\dimen163
+\caption@rightmargin=\dimen164
+\caption@width=\dimen165
+\caption@indent=\dimen166
+\caption@parindent=\dimen167
+\caption@hangindent=\dimen168
 Package caption Info: Standard document class detected.
 )
 \c@caption@flags=\count266
@@ -152,27 +137,28 @@ File: l3backend-xetex.def 2022-02-07 L3 backend support: XeTeX
 ) (main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 19.
-LaTeX Font Info:    Trying to load font information for TS1+cmr on input line 1
-9.
- (ts1cmr.fd
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 22.
+LaTeX Font Info:    ... okay on input line 22.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 22.
+LaTeX Font Info:    ... okay on input line 22.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 22.
+LaTeX Font Info:    ... okay on input line 22.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 22.
+LaTeX Font Info:    ... okay on input line 22.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 22.
+LaTeX Font Info:    Trying to load font information for TS1+cmr on input line 2
+2.
+
+(ts1cmr.fd
 File: ts1cmr.fd 2019/12/16 v2.5j Standard LaTeX font definitions
 )
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 19.
-LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    ... okay on input line 22.
+LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 22.
+LaTeX Font Info:    ... okay on input line 22.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 22.
+LaTeX Font Info:    ... okay on input line 22.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 22.
+LaTeX Font Info:    ... okay on input line 22.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: xetex
@@ -240,11 +226,11 @@ LaTeX Font Info:    ... okay on input line 19.
 * \@reversemarginfalse
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
-LaTeX Info: Redefining \microtypecontext on input line 19.
-Package microtype Info: Applying patch `item' on input line 19.
-Package microtype Info: Applying patch `toc' on input line 19.
-Package microtype Info: Applying patch `eqnum' on input line 19.
-Package microtype Info: Applying patch `footnote' on input line 19.
+LaTeX Info: Redefining \microtypecontext on input line 22.
+Package microtype Info: Applying patch `item' on input line 22.
+Package microtype Info: Applying patch `toc' on input line 22.
+Package microtype Info: Applying patch `eqnum' on input line 22.
+Package microtype Info: Applying patch `footnote' on input line 22.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using default protrusion set `alltext'.
 Package microtype Info: No adjustment of tracking.
@@ -260,13 +246,13 @@ File: mt-cmr.cfg 2013/05/19 v2.2 microtype config. file: Computer Modern Roman
 (RS)
 )
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <9> on input line 21.
+(Font)              <9> on input line 24.
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <6> on input line 21.
+(Font)              <6> on input line 24.
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <5> on input line 21.
+(Font)              <5> on input line 24.
 LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 2
-9.
+4.
  (t1lmtt.fd
 File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
@@ -274,28 +260,70 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             `lmtt' (encoding: T1).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
+
+
+Package natbib Warning: Citation `dietke2025molmo' on page 1 undefined on input
+ line 37.
+
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <8> on input line 55.
- [1
+(Font)              <8> on input line 59.
+LaTeX Font Info:    Calculating math sizes for size <6.5> on input line 108.
+
+LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <6.5> not available
+(Font)              size <6> substituted on input line 108.
+
+
+LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <4.54997> not available
+(Font)              size <5> substituted on input line 108.
+
+
+LaTeX Font Warning: Font shape `OT1/cmr/m/n' in size <3.25> not available
+(Font)              size <5> substituted on input line 108.
+
+
+LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <6.5> not available
+(Font)              size <6> substituted on input line 108.
+
+
+LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <4.54997> not available
+(Font)              size <5> substituted on input line 108.
+
+
+LaTeX Font Warning: Font shape `OML/cmm/m/it' in size <3.25> not available
+(Font)              size <5> substituted on input line 108.
+
+
+LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <6.5> not available
+(Font)              size <6> substituted on input line 108.
+
+
+LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <4.54997> not available
+(Font)              size <5> substituted on input line 108.
+
+
+LaTeX Font Warning: Font shape `OMS/cmsy/m/n' in size <3.25> not available
+(Font)              size <5> substituted on input line 108.
+
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6.5> on input line 108.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <4.54997> on input line 108.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <3.25> on input line 108.
+[1
 
 
 ]
-File: failures//egocentric_direction_gemma4_route_planning_4959.png Graphic fil
-e (type bmp)
-<failures//egocentric_direction_gemma4_route_planning_4959.png>
-File: failures//format_or_unit_gemma4_route_planning_4963.png Graphic file (typ
-e bmp)
-<failures//format_or_unit_gemma4_route_planning_4963.png>
-File: failures//refusal_gemma4_object_abs_distance_687.png Graphic file (type b
-mp)
-<failures//refusal_gemma4_object_abs_distance_687.png>
-File: failures//scale_confusion_gemma4_object_abs_distance_690.png Graphic file
- (type bmp)
-<failures//scale_confusion_gemma4_object_abs_distance_690.png>
-File: failures//scale_prior_anchor_gemma4_object_abs_distance_684.png Graphic f
-ile (type bmp)
-<failures//scale_prior_anchor_gemma4_object_abs_distance_684.png>
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <7> on input line 128.
- [2] (main.aux) )
-Output written on main.xdv (2 pages, 9024 bytes).
+(Font)              <7> on input line 166.
+ (main.bbl)
+
+Package natbib Warning: There were undefined citations.
+
+[2] (main.aux)
+
+LaTeX Font Warning: Size substitutions with differences
+(Font)              up to 1.75pt have occurred.
+
+ )
+Output written on main.xdv (2 pages, 12940 bytes).

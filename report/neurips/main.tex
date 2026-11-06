@@ -2,18 +2,21 @@
 \usepackage[preprint]{neurips_2026}
 \usepackage[T1]{fontenc}
 \usepackage{booktabs}
-\usepackage{graphicx}
 \usepackage{microtype}
 \usepackage[margin=0pt,font=small,labelfont=bf,skip=2pt]{caption}
-\graphicspath{{failures/}}
 \setlength{\abovecaptionskip}{2pt}
 \setlength{\belowcaptionskip}{0pt}
 \setlength{\parskip}{0pt}
 \captionsetup[table]{skip=3pt}
 
-\title{Where Vision--Language Models Fail at 3D Space:\\A VSI-Bench Evaluation of Three Open-Weight VLMs}
+\title{VSI-Bench Evaluation of Open-Weight VLMs}
 
-\author{Noah Lee\\Texas A\&M University}
+\author{%
+  Noah Lee \quad UIN: 638008962 \\
+  Texas A\&M University \\
+  College Station, TX 77843 \\
+  \texttt{noahvlee@tamu.edu}
+}
 
 \raggedbottom
 \begin{document}
@@ -22,31 +25,32 @@
 \vspace{-16mm}
 
 \section{Setup and protocol}
-We evaluate three open-weight VLMs on VSI-Bench~\citep{yang2025thinking}, covering 1316 questions across
-288 indoor scenes from ScanNet~\citep{dai2017scannet} and ScanNet++~\citep{yeshwanth2023scannetpp}. Each model receives 32 frames sampled uniformly across
-the video ($\mathrm{round}(\mathrm{linspace}(0,N{-}1,32))$), scaled to a maximum dimension of 448\,px,
-using greedy decoding with up to 48 tokens. Prompts follow the standard VSI-Bench harness.
-We report official strict accuracy (ACC) and Mean Relative Accuracy (MRA), alongside a lenient parser
+We evaluate three open-weight VLMs on VSI-Bench~\citep{yang2025thinking}, which covers 1316 questions across
+288 indoor scenes from ScanNet~\citep{dai2017scannet} and ScanNet++~\citep{yeshwanth2023scannetpp}. Each model receives 32 frames sampled uniformly from
+the video scaled to a maximum side length of 448\,px and outputs responses
+using greedy decoding with up to 48 tokens. Prompts are copied from the standard VSI-Bench harness.
+We report official strict accuracy (ACC) and Mean Relative Accuracy (MRA), and also report a fallback with a lenient parser
 that extracts numbers written as words or embedded in explanatory text.
 
 \vspace{2pt}
 \noindent\textbf{Protocol.} Evaluated models include Qwen3-VL-8B-Instruct~\citep{qwen2025qwen3vl}, Gemma-4-12B-it~\citep{gemma2026gemma4}, and
-Molmo2-8B~\citep{deitke2024molmo}, run locally on one NVIDIA H100 GPU (PyTorch 2.14.1, transformers 5.22.1 / 4.57.1).
-Tasks cover their full test splits: \texttt{route\_planning} (Category 1, ACC, $n{=}194$),
+Molmo2-8B~\citep{dietke2025molmo}, run on one NVIDIA H100 GPU (PyTorch 2.14.1, transformers 5.22.1 / 4.57.1).
+Tasks use the full test splits: \texttt{route\_planning} (Category 1, ACC, $n{=}194$),
 \texttt{object\_abs\_distance} (Category 2, MRA, $n{=}834$), and \texttt{room\_size\_estimation}
-(Category 2, MRA, $n{=}288$). We report 95\% confidence intervals via scene-level bootstrapping.
-A blind control arm repeats all numeric tasks with blank image inputs to measure prior bias.
+(Category 2, MRA, $n{=}288$). We report 95\% confidence intervals with resampling at the scene level, which only matters
+for the \texttt{object\_abs\_distance} task. We also report blind model priors by witholding images and only retrieving model
+answers based on the prompts.
 
 \section{Results}
 Table~\ref{tab:results} summarizes performance across all three tasks. Qwen3-VL leads in every
-category. Gemma-4 scores near zero under strict evaluation because it responds in natural sentences
-rather than isolated tokens; our lenient parser extracts these values and shows the underlying scores.
+category. Gemma-4 scores near zero under strict evaluation because it responds with sentences
+rather than direct numbers; the lenient parser extracts these values and shows the resulting scores.
 
 \vspace{2pt}
 \begin{table}[h]
 \centering
-\caption{Main results (strict scorer, 95\% CI over scenes). Values in parentheses show lenient parser
-results when they differ by more than 15 percentage points.}
+\caption{Main results (strict score, 95\% CI over scenes). Values in parentheses show lenient parsing score
+ when they differ by more than 15 percentage points.}
 \label{tab:results}
 \small
 \begin{tabular}{@{}lccc@{}}
@@ -64,13 +68,12 @@ results when they differ by more than 15 percentage points.}
 \end{tabular}
 \end{table}
 
-The blind evaluation shows how much performance relies on dataset statistics rather than visual evidence.
-Qwen3-VL scores 30.6 and 32.9 MRA without images. Gemma-4 refuses to answer without visual context,
-scoring zero. Molmo2-8B scores higher blind on room size (32.0 vs 11.5) by predicting a constant
-20\,m$^2$, which closely matches the dataset median.
+Blind evaluation reveals heavy reliance on priors: Qwen3-VL scores 30.6/32.9 MRA without images,
+Gemma-4 refuses (0.0), and Molmo2-8B scores higher blind on room size (32.0 vs 11.5) by predicting
+a constant 20\,m$^2$.
 
 \vspace{2pt}
-\noindent\textbf{Numeric diagnostics.} To evaluate metric reasoning, we report the correlation between
+\noindent\textbf{Numeric diagnostics.} To evaluate metric estimation, we report the correlation between
 predictions and ground truth ($r$), prediction variance relative to ground truth ($\sigma_{\hat{y}}/\sigma_y$),
 parser failure rate, and median absolute relative error.
 
@@ -89,59 +92,110 @@ Qwen3-VL-8B & Room size & 0.8136 & 0.5758 & 0.0 & 21\% \\
 \end{tabular}\end{center}
 
 \section{Failure analysis}
-The panels below illustrate five representative failure cases, displaying input frames with timing indices,
-the question, ground truth, and model prediction. Table~2 categorizes 2789 failures across four
-primary mechanisms.
+The cards below show representative failures from all three models: the exact prompt accompanying the
+32 frames, the decoded response, and the ground truth. Table~2 categorizes 2789 failures into four mechanisms.
 
 \noindent
-\begin{minipage}[t]{0.460\textwidth}
-\centering
-\includegraphics[width=\linewidth]{egocentric_direction_gemma4_route_planning_4959.png}
+\begin{minipage}[t]{0.485\textwidth}\raggedright
+\noindent\textbf{Case 1 --- Scale confusion}\par
+{\scriptsize allenai/Molmo2-8B \quad\textbar\quad Room size \quad\textbar\quad id~533}\par\vspace{0.5pt}
+{\fontsize{6.5}{7.8}\selectfont\raggedright\setlength{\parindent}{0pt}
+\textbf{Prompt.}\ \texttt{These are frames of a video.\newline
+What is the size of this room (in square meters)? \newline
+If multiple rooms are shown, estimate the size of the combined space.\newline
+Please answer the question using a single word or phrase.}\par\vspace{0.5pt}
+\textbf{Response.}\ \texttt{100}\par\vspace{0.5pt}
+\textbf{Ground truth.}\ 30.9 m$^2$\par}
+\vspace{0.5pt}\hrule\vspace{1.5pt}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.460\textwidth}
-\centering
-\includegraphics[width=\linewidth]{format_or_unit_gemma4_route_planning_4963.png}
+\begin{minipage}[t]{0.485\textwidth}\raggedright
+\noindent\textbf{Case 2 --- Scale confusion (prior)}\par
+{\scriptsize Qwen/Qwen3-VL-8B-Instruct \quad\textbar\quad Absolute distance \quad\textbar\quad id~825}\par\vspace{0.5pt}
+{\fontsize{6.5}{7.8}\selectfont\raggedright\setlength{\parindent}{0pt}
+\textbf{Prompt.}\ \texttt{These are frames of a video.\newline
+Measuring from the closest point of each object, what is the distance between the stove and the chair (in meters)?\newline
+Please answer the question using a single word or phrase.}\par\vspace{0.5pt}
+\textbf{Response.}\ \texttt{1.7}\par\vspace{0.5pt}
+\textbf{Ground truth.}\ 3.6 m\par}
+\vspace{0.5pt}\hrule\vspace{1.5pt}
 \end{minipage}
 \par\vspace{1pt}
+\noindent\textbf{Case 3 --- Route planning}\par
+{\scriptsize Qwen/Qwen3-VL-8B-Instruct \quad\textbar\quad Route planning \quad\textbar\quad id~4961}\par\vspace{0.5pt}
+{\scriptsize\raggedright\setlength{\parindent}{0pt}
+\textbf{Prompt.}\ \texttt{These are frames of a video.\newline
+You are a robot beginning at the sink and facing the heater. You want to navigate to the doorframe. You will perform the following actions (Note: for each [please fill in], choose either 'turn back,' 'turn left,' or 'turn right.'): 1. [please fill in] 2. Go forward until the doorframe. You have reached the final destination.\newline
+Options:\newline
+A. Turn Back\newline
+B. Turn Left\newline
+C. Turn Right\newline
+Answer with the option's letter from the given choices directly.}\par\vspace{0.5pt}
+\textbf{Response.}\ \texttt{B}\par\vspace{0.5pt}
+\textbf{Ground truth.}\ A. Turn Back\par}
+\vspace{0.5pt}\hrule\vspace{1.5pt}
+\vspace{1pt}
 \noindent
-\begin{minipage}[t]{0.460\textwidth}
-\centering
-\includegraphics[width=\linewidth]{refusal_gemma4_object_abs_distance_687.png}
+\begin{minipage}[t]{0.485\textwidth}\raggedright
+\noindent\textbf{Case 4 --- Refusal / abstention}\par
+{\scriptsize google/gemma-4-12B-it \quad\textbar\quad Room size \quad\textbar\quad id~530}\par\vspace{0.5pt}
+{\fontsize{6.5}{7.8}\selectfont\raggedright\setlength{\parindent}{0pt}
+\textbf{Prompt.}\ \texttt{These are frames of a video.\newline
+What is the size of this room (in square meters)? \newline
+If multiple rooms are shown, estimate the size of the combined space.\newline
+Please answer the question using a single word or phrase.}\par\vspace{0.5pt}
+\textbf{Response.}\ \texttt{I cannot determine the size of the room from the provided images.}\par\vspace{0.5pt}
+\textbf{Ground truth.}\ 26.4 m$^2$\par}
+\vspace{0.5pt}\hrule\vspace{1.5pt}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.460\textwidth}
-\centering
-\includegraphics[width=\linewidth]{scale_confusion_gemma4_object_abs_distance_690.png}
-\end{minipage}
-\par\vspace{1pt}
-\noindent
-\begin{minipage}[t]{0.460\textwidth}
-\centering
-\includegraphics[width=\linewidth]{scale_prior_anchor_gemma4_object_abs_distance_684.png}
+\begin{minipage}[t]{0.485\textwidth}\raggedright
+\noindent\textbf{Case 5 --- Answer format}\par
+{\scriptsize google/gemma-4-12B-it \quad\textbar\quad Absolute distance \quad\textbar\quad id~682}\par\vspace{0.5pt}
+{\fontsize{6.5}{7.8}\selectfont\raggedright\setlength{\parindent}{0pt}
+\textbf{Prompt.}\ \texttt{These are frames of a video.\newline
+Measuring from the closest point of each object, what is the distance between the tv and the sofa (in meters)?\newline
+Please answer the question using a single word or phrase.}\par\vspace{0.5pt}
+\textbf{Response.}\ \texttt{The distance between the tv and the sofa is 2.15 meters.}\par\vspace{0.5pt}
+\textbf{Ground truth.}\ 2.1 m (0.00 strict / 1.00 lenient)\par}
+\vspace{0.5pt}\hrule\vspace{1.5pt}
 \end{minipage}
 \par\vspace{1pt}
 
 \begin{center}
-\footnotesize\textbf{Table 2:} Failure taxonomy. Near misses within 30\% relative error are excluded,
-as MRA awards partial credit in that range.\par\vspace{1pt}
+\footnotesize\textbf{Table 2:} Failure taxonomy. Near misses within 30\% relative error are
+excluded, since MRA awards partial credit there.\par\vspace{1pt}
 {\scriptsize\begin{tabular}{@{}p{0.22\textwidth}rp{0.52\textwidth}@{}}
 \toprule
 Class & $n$ & Mechanism \\
 \midrule
-\textbf{Scale confusion} & 1824 & large numeric error; predictions drift toward typical training sizes \\
-\textbf{Egocentric direction} & 378 & incorrect turn sequence; models favor options B and C over A and D \\
+\textbf{Scale confusion} & 1824 & large numeric error; predictions drift towards the training priors \\
+\textbf{Egocentric direction} & 378 & incorrect multiple choice; models favor options B and C over A and D \\
 \textbf{Refusal / abstention} & 355 & model outputs refusal text instead of estimating values \\
-\textbf{Answer format} & 232 & correct value produced, but formatted outside the benchmark parser's rules \\
+\textbf{Answer format} & 232 & correct value produced, but the benchmark parser fails to parse it \\
 \bottomrule
 \end{tabular}}
 \end{center}
 
 \section{Discussion}
-Qwen3-VL-8B shows genuine visual estimation on the numeric tasks: it scores 47.9 MRA on distance and 57.1 on room size, and removing input video drops these scores by 17.3 and 24.2 points ($r=0.71$ and $0.81$). Even without video, however, it retains roughly 30 MRA by predicting typical indoor dimensions, showing that part of its score comes from dataset priors rather than image inspection. Gemma-4-12B avoids numeric guesses entirely on room size, refusing all 288 questions, and its 0.3 strict score on distances rises to 22.8 under lenient parsing because it answers in conversational sentences. Molmo2-8B correlates with room sizes ($r=0.74$) but scales estimates roughly $3\times$ too high; when blind, it outputs a constant 20\,m$^2$, which scores 32.0 MRA because MRA rewards guesses near the dataset median. All three models perform poorly on route planning (29.4--35.0\% ACC), partly because they systematically favor options B and C regardless of camera motion. Overall, feeding 32 downsampled frames without camera parameters leaves models guessing metric scale from visual priors; benchmarks with explicit 3D reconstruction supervision such as VLM-3R~\citep{fan2026vlm3r} highlight the need to evaluate relative geometry rather than ungrounded absolute scale estimation.
+Qwen3-VL-8B demonstrably uses video imagery: In the blind evaluation, it guesses numbers from its training
+distribution (31\% MRA on both tasks), and adding imagery raises MRA by 17 and 24 points.
+This suggests it may have been pretrained on VSI-Bench or similar data.
 
-\vspace{-2pt}
+Gemma-4-12B avoids guessing when blind, which is desirable, but also abstains on all room-size
+tasks even with video and ignores instructions to output only numbers. A lenient parser is thus
+needed to extract its answers (0.3 $\rightarrow$ 22.8).
+
+Molmo2-8B's predictions correlate with room size ($r=0.74$) but 3$\times$ more variance than the
+ground truth. With blind evaluation, it emits a constant 20\,m$^2$ (32.0 MRA). Like Gemma-4,
+it also struggles with instruction following and outputs many unparsable responses.
+
+All three  models perform poorly on route planning (29.4--35.0\% ACC), partly because they are biased towards B and C 
+regardless of camera motion. Overall, the models are poor at predicting absolute metric dimensions, and require
+grounding with 3D-supervision in the style of  VLM-3R~\citep{fan2026vlm3r} to become more accurate.
+
+\vspace{-5pt}
 \bibliographystyle{abbrvnat}
 \begingroup
-\scriptsize
+\fontsize{5.6}{6.3}\selectfont
 \setlength{\bibsep}{0pt}
 \setlength{\parskip}{0pt}
 \bibliography{references}

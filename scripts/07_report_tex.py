@@ -4,10 +4,11 @@
     python scripts/07_report_tex.py           # -> report/neurips/main.tex
     tectonic -X compile report/neurips/main.tex   # -> main.pdf
 
-Numbers come from results/scores.csv and results/stats.json; figures from
-results/failures/*.png (rendered with VSI_PANEL_WIDTH=720, which prints at
-~8 pt when placed two-up in the NeurIPS 5.5 in text block). Nothing here is
-hand-copied, so a rerun of the eval regenerates the paper.
+Numbers come from results/scores.csv and results/stats.json; failure cases
+come from results/failures/candidates.jsonl and are typeset as text cards
+(full prompt, full response, model, ground truth) rather than rendered as
+images. Nothing here is hand-copied, so a rerun of the eval regenerates the
+paper.
 
 Layout target: exactly 2 pages (assignment cap of one page + one supplementary).
 """
@@ -24,6 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from vsibench_eval import common as C  # noqa: E402
+from vsibench_eval import failure_cases as F  # noqa: E402
 
 DISPLAY = {"qwen3vl": "Qwen3-VL-8B", "gemma4": "Gemma-4-12B", "molmo2": "Molmo2-8B"}
 TASK_LABEL = {"route_planning": "Route planning", "object_abs_distance": "Absolute distance",
@@ -41,6 +43,21 @@ def esc(s: str) -> str:
     # \textasciitilde expands to a \mathchar in T1 encoding, which injects math
     # mode and aborts the compile.
     return "".join(rep.get(ch, ch) for ch in str(s))
+
+
+def esc_verbatim(s: str) -> str:
+    """Escape prompt/response text without turning spaces into non-breaking ones."""
+    rep = {"\\": r"\textbackslash{}", "&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#",
+           "_": r"\_", "{": r"\{", "}": r"\}", "^": r"\^{}",
+           "<": r"\textless{}", ">": r"\textgreater{}", "~": r"\char126{}"}
+    return "".join(rep.get(ch, ch) for ch in str(s))
+
+
+def tex_lines(text: str) -> str:
+    """Verbatim-ish text with line breaks preserved and blank lines collapsed."""
+    lines = [esc_verbatim(line) for line in str(text).replace("\r\n", "\n").split("\n")]
+    lines = [line for line in lines if line.strip()]
+    return "\\newline\n".join(lines) if lines else r"\textit{(empty)}"
 
 
 def load_scores() -> dict:
@@ -159,47 +176,58 @@ def taxonomy() -> tuple[str, int, int]:
     return tbl, total, len(counts)
 
 
-def select_panels(n: int = 5) -> list[tuple[str, Path, dict]]:
-    d = C.RESULTS_DIR / "failures"
-    idx_p = d / "index.json"
-    index = json.loads(idx_p.read_text()) if idx_p.exists() else {}
-    groups: dict[str, list[Path]] = {}
-    for p in sorted(d.glob("*.png")):
-        groups.setdefault(index.get(p.name, {}).get("class", "case"), []).append(p)
-    order = sorted(groups, key=lambda k: -len(groups[k]))
-    picked, depth = [], 0
-    while len(picked) < n and any(len(v) > depth for v in groups.values()):
-        for k in order:
-            if len(picked) >= n:
-                break
-            if len(groups[k]) > depth:
-                picked.append((k, groups[k][depth], index.get(groups[k][depth].name, {})))
-        depth += 1
-    return picked
+def _card(row: dict, number: int, compact: bool = False) -> str:
+    meta = (f"{esc(F.model_id_label(row))} \\quad\\textbar\\quad "
+            f"{esc(F.task_label(row))} \\quad\\textbar\\quad "
+            f"id~{row.get('id', '?')}")
+    gt = F.ground_truth_text(row, latex=True)
+    try:
+        if abs(float(row.get("strict_score")) - float(row.get("lenient_score"))) > 1e-9:
+            gt += f" ({F.score_text(row)})"
+    except (TypeError, ValueError):
+        pass
+    body_font = r"\fontsize{6.5}{7.8}\selectfont" if compact else r"\scriptsize"
+    return (
+        "\\noindent\\textbf{Case %d --- %s}\\par\n"
+        "{\\scriptsize %s}\\par\\vspace{0.5pt}\n"
+        "{%s\\raggedright\\setlength{\\parindent}{0pt}\n"
+        "\\textbf{Prompt.}\\ \\texttt{%s}\\par\\vspace{0.5pt}\n"
+        "\\textbf{Response.}\\ \\texttt{%s}\\par\\vspace{0.5pt}\n"
+        "\\textbf{Ground truth.}\\ %s\\par}\n"
+        "\\vspace{0.5pt}\\hrule\\vspace{1.5pt}"
+        % (number, esc(F.class_label(row)), meta, body_font,
+           tex_lines(F.prompt_text(row)), tex_lines(F.response_text(row)), gt)
+    )
 
 
-def figures(n: int = 5) -> str:
-    picked = select_panels(n)
-    if not picked:
-        return r"\emph{no panels rendered}"
-    cells = []
-    for i, (cls, p, md) in enumerate(picked, 1):
-        label = C.FAILURE_GROUP.get(cls, cls.replace("_", " "))
-        sub = f"{DISPLAY.get(md.get('model'), md.get('model',''))}, {TASK_LABEL.get(md.get('task'), '')}, id~{md.get('id','')}"
-        # The panel header already names the class, model and task, so no extra
-        # LaTeX caption line is needed (each one costs ~0.15in).
-        cells.append(
-            "\\begin{minipage}[t]{0.460\\textwidth}\n\\centering\n"
-            f"\\includegraphics[width=\\linewidth]{{{p.name}}}\n"
-            "\\end{minipage}")
-    # Rows are separate paragraphs, not one figure float: a float cannot break
-    # across pages, so five panels would jump whole and push the taxonomy onto a
-    # third page (same failure mode as the CSS grid in the HTML version).
-    rows = []
-    for i in range(0, len(cells), 2):
-        pair = cells[i:i + 2]
-        rows.append("\\noindent\n" + "\\hfill\n".join(pair) + "\n\\par\\vspace{1pt}")
-    return "\n".join(rows)
+def failure_cards(n: int = 5) -> str:
+    """Text cards: exact prompt, full response, model, ground truth.
+
+    Long route-planning prompts get a full-width card; the shorter numeric
+    cards are paired two-up so the section still fits inside two pages.
+    """
+    cases = F.select_cases(n)
+    if not cases:
+        return r"\emph{no failure candidates (run scripts/05\_mine.py)}"
+
+    blocks = []
+    i = 0
+    while i < len(cases):
+        row = cases[i]
+        if row.get("task") != "route_planning" and i + 1 < len(cases) \
+                and cases[i + 1].get("task") != "route_planning":
+            blocks.append(
+                "\\noindent\n"
+                "\\begin{minipage}[t]{0.485\\textwidth}\\raggedright\n"
+                + _card(row, i + 1, compact=True) + "\n\\end{minipage}\\hfill\n"
+                "\\begin{minipage}[t]{0.485\\textwidth}\\raggedright\n"
+                + _card(cases[i + 1], i + 2, compact=True) + "\n\\end{minipage}\n"
+                "\\par\\vspace{1pt}")
+            i += 2
+        else:
+            blocks.append(_card(row, i + 1) + "\n\\vspace{1pt}")
+            i += 1
+    return "\n".join(blocks)
 
 
 def build(panels: int) -> str:
@@ -219,28 +247,30 @@ def build(panels: int) -> str:
         r"estimates roughly $3\times$ too high; when blind, it outputs a constant 20\,m$^2$, which scores "
         r"32.0 MRA because MRA rewards guesses near the dataset median. All three models perform poorly "
         r"on route planning (29.4--35.0\% ACC), partly because they systematically favor options B and C "
-        r"regardless of camera motion. Overall, feeding 32 downsampled frames without camera parameters "
-        r"leaves models guessing metric scale from visual priors; benchmarks with explicit 3D reconstruction "
-        r"supervision such as VLM-3R~\citep{fan2026vlm3r} highlight the need to evaluate relative geometry "
-        r"rather than ungrounded absolute scale estimation."
+        r"regardless of camera motion. Overall, 32 downsampled frames without camera parameters leave models "
+        r"guessing metric scale from visual priors; VLM-3R-style 3D supervision~\citep{fan2026vlm3r} would "
+        r"test relative geometry instead."
     )
 
     return rf"""\documentclass{{article}}
 \usepackage[preprint]{{neurips_2026}}
 \usepackage[T1]{{fontenc}}
 \usepackage{{booktabs}}
-\usepackage{{graphicx}}
 \usepackage{{microtype}}
 \usepackage[margin=0pt,font=small,labelfont=bf,skip=2pt]{{caption}}
-\graphicspath{{{{failures/}}}}
 \setlength{{\abovecaptionskip}}{{2pt}}
 \setlength{{\belowcaptionskip}}{{0pt}}
 \setlength{{\parskip}}{{0pt}}
 \captionsetup[table]{{skip=3pt}}
 
-\title{{Where Vision--Language Models Fail at 3D Space:\\A VSI-Bench Evaluation of Three Open-Weight VLMs}}
+\title{{VSI-Bench Evaluation of Open-Weight VLMs}}
 
-\author{{Noah Lee\\Texas A\&M University}}
+\author{{%
+  Noah Lee \quad UIN: 638008962 \\
+  Texas A\&M University \\
+  College Station, TX 77843 \\
+  \texttt{{noahvlee@tamu.edu}}
+}}
 
 \raggedbottom
 \begin{{document}}
@@ -249,20 +279,21 @@ def build(panels: int) -> str:
 \vspace{{-16mm}}
 
 \section{{Setup and protocol}}
-We evaluate three open-weight VLMs on VSI-Bench~\citep{{yang2025thinking}}, covering {n_q} questions across
-{n_sc} indoor scenes from ScanNet~\citep{{dai2017scannet}} and ScanNet++~\citep{{yeshwanth2023scannetpp}}. Each model receives 32 frames sampled uniformly across
-the video ($\mathrm{{round}}(\mathrm{{linspace}}(0,N{{-}}1,32))$), scaled to a maximum dimension of 448\,px,
+We evaluate three open-weight VLMs on VSI-Bench~\citep{{yang2025thinking}}, which covers {n_q} questions across
+{n_sc} indoor scenes from ScanNet~\citep{{dai2017scannet}} and ScanNet++~\citep{{yeshwanth2023scannetpp}}. Each model receives 32 frames sampled uniformly from
+the video scaled to a maximum dimension of 448\,px and outputs responses
 using greedy decoding with up to 48 tokens. Prompts follow the standard VSI-Bench harness.
-We report official strict accuracy (ACC) and Mean Relative Accuracy (MRA), alongside a lenient parser
+We report official strict accuracy (ACC) and Mean Relative Accuracy (MRA), and also report a fallback with a lenient parser
 that extracts numbers written as words or embedded in explanatory text.
 
 \vspace{{2pt}}
 \noindent\textbf{{Protocol.}} Evaluated models include Qwen3-VL-8B-Instruct~\citep{{qwen2025qwen3vl}}, Gemma-4-12B-it~\citep{{gemma2026gemma4}}, and
-Molmo2-8B~\citep{{deitke2024molmo}}, run locally on one NVIDIA H100 GPU (PyTorch 2.14.1, transformers 5.22.1 / 4.57.1).
-Tasks cover their full test splits: \texttt{{route\_planning}} (Category 1, ACC, $n{{=}}194$),
+Molmo2-8B~\citep{{deitke2024molmo}}, run on one NVIDIA H100 GPU (PyTorch 2.14.1, transformers 5.22.1 / 4.57.1).
+Tasks use the full test splits: \texttt{{route\_planning}} (Category 1, ACC, $n{{=}}194$),
 \texttt{{object\_abs\_distance}} (Category 2, MRA, $n{{=}}834$), and \texttt{{room\_size\_estimation}}
-(Category 2, MRA, $n{{=}}288$). We report 95\% confidence intervals via scene-level bootstrapping.
-A blind control arm repeats all numeric tasks with blank image inputs to measure prior bias.
+(Category 2, MRA, $n{{=}}288$). We report 95\% confidence intervals with resampling at the scene level, which only matters
+for the \texttt{{object\_abs\_distance}} task. We also report blind model priors by witholding images and only retrieving model
+answers based on the prompts.
 
 \section{{Results}}
 Table~\ref{{tab:results}} summarizes performance across all three tasks. Qwen3-VL leads in every
@@ -299,11 +330,12 @@ Model & Task & $r$ & $\sigma_{{\hat{{y}}}}/\sigma_y$ & Parse fail. & Med.\ rel.\
 \end{{tabular}}\end{{center}}
 
 \section{{Failure analysis}}
-The panels below illustrate five representative failure cases, displaying input frames with timing indices,
-the question, ground truth, and model prediction. Table~2 categorizes {n_fail} failures across four
-primary mechanisms.
+The cards below show representative failures from all three models. Each card gives the exact text prompt
+that accompanied the 32 input frames, the model's complete decoded response, and the ground truth; the
+frames themselves are omitted because the protocol fixes them and the failure mechanism is visible in the
+prompt--response pair. Table~2 categorizes {n_fail} failures across four primary mechanisms.
 
-{figures(panels)}
+{failure_cards(panels)}
 
 \begin{{center}}
 \footnotesize\textbf{{Table 2:}} Failure taxonomy. Near misses within 30\% relative error are excluded,
@@ -314,10 +346,10 @@ as MRA awards partial credit in that range.\par\vspace{{1pt}}
 \section{{Discussion}}
 {disc}
 
-\vspace{{-2pt}}
+\vspace{{-5pt}}
 \bibliographystyle{{abbrvnat}}
 \begingroup
-\scriptsize
+\fontsize{{5.8}}{{6.6}}\selectfont
 \setlength{{\bibsep}}{{0pt}}
 \setlength{{\parskip}}{{0pt}}
 \bibliography{{references}}
@@ -337,22 +369,13 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(Path(__file__).resolve().parents[1] / "report" / "neurips_2026.sty", out.parent)
 
-    # figures are referenced relative to the .tex, so keep them alongside
-    src = C.RESULTS_DIR / "failures"
-    dst = out.parent / "failures"
-    dst.mkdir(parents=True, exist_ok=True)
-    for p in src.glob("*.png"):
-        shutil.copy(p, dst)
-    for p in src.glob("index.json"):
-        shutil.copy(p, dst)
-
     bib_src = Path(__file__).resolve().parents[1] / "report" / "references.bib"
     if bib_src.exists():
         shutil.copy(bib_src, out.parent / "references.bib")
 
     out.write_text(build(args.panels), encoding="utf-8")
     print(f"wrote {out}  ({out.stat().st_size/1024:.0f} KB), "
-          f"{len(list(dst.glob('*.png')))} figures copied")
+          f"{len(F.select_cases(args.panels))} text cards")
     print("compile:  ~/.local/bin/tectonic -X compile " + str(out))
     return 0
 

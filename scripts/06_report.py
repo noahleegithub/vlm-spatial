@@ -4,10 +4,10 @@
     python scripts/06_report.py
     python scripts/06_report.py --panels 6 --open
 
-Numbers come from results/scores.csv + stats.json, panels from
-results/failures/*.png (rendered by 05_mine.py). Images are embedded as
-base64, so the single .html file can be printed to PDF from any browser
-(Ctrl-P -> "Save as PDF", US Letter, no scaling, backgrounds on).
+Numbers come from results/scores.csv + stats.json; failure cases come from
+results/failures/candidates.jsonl and are rendered as text cards (exact prompt,
+full response, model, ground truth), so the single .html file can be printed to
+PDF from any browser (Ctrl-P -> "Save as PDF", US Letter, no scaling).
 
 The discussion paragraph is deliberately left as a marked scaffold: it must be
 written from the numbers you actually obtained, not from a template.
@@ -16,8 +16,8 @@ written from the numbers you actually obtained, not from a template.
 from __future__ import annotations
 
 import argparse
-import base64
 import csv
+import html
 import json
 import subprocess
 import sys
@@ -26,6 +26,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from vsibench_eval import common as C  # noqa: E402
+from vsibench_eval import failure_cases as F  # noqa: E402
 
 DISPLAY = {
     "qwen3vl": "Qwen3-VL-8B-Instruct",
@@ -61,17 +62,19 @@ td { padding: 2pt 3pt; border-bottom: 0.5pt solid #ddd; vertical-align: top; }
 td.num { font-variant-numeric: tabular-nums; }
 .mono { font-family: "SF Mono", Menlo, monospace; font-size: 7.4pt; }
 .muted { color: #666; }
-/* inline-block, not grid: Chromium will not fragment a CSS grid across pages, so
-   the whole gallery jumps to the next page and pushes the taxonomy/discussion
-   onto a third. Inline-block cards break between rows. */
+/* One card per row: the full prompt is too long for a half-width column.
+   break-inside keeps a card from splitting across printed pages. */
 .gallery { display: block; margin: 3pt 0 2pt 0; }
-.case { display: inline-block; width: 48.7%; vertical-align: top;
-        margin: 0 0 6pt 0; border: 0.6pt solid #ccc; border-radius: 2pt;
+.case { display: block; width: 100%; margin: 0 0 4pt 0;
+        border: 0.6pt solid #ccc; border-radius: 2pt;
         overflow: hidden; break-inside: avoid; }
-.case:nth-child(odd) { margin-right: 2%; }
-.case img { width: 100%; display: block; }
-.cap { padding: 2pt 3pt 3pt 3pt; font-size: 7.2pt; line-height: 1.2; }
-.cap b { font-size: 7.4pt; }
+.cap { padding: 2pt 4pt 1pt 4pt; font-size: 7.2pt; line-height: 1.2;
+       background: #f7f7f7; border-bottom: 0.4pt solid #ddd; }
+.cap b { font-size: 7.6pt; }
+.cardbody { padding: 1.5pt 4pt 2pt 4pt; font-size: 7.1pt; line-height: 1.2; }
+.cardbody .lbl { font-weight: 600; }
+.cardbody .text { font-family: "SF Mono", Menlo, monospace; font-size: 7.1pt;
+                  white-space: pre-wrap; margin: 0 0 2pt 0; }
 .pb { page-break-before: always; }
 .note { background: #fff8e1; border-left: 2.5pt solid #f0b400; padding: 4pt 6pt;
         font-size: 8pt; margin: 4pt 0; }
@@ -86,9 +89,10 @@ body.compact { font-size: 7.9pt; line-height: 1.17; }
 body.compact table { font-size: 6.9pt; }
 body.compact h2 { margin: 5pt 0 1.5pt 0; font-size: 8.8pt; }
 body.compact h3 { margin: 5pt 0 1.5pt 0; }
-body.compact .cap { font-size: 6.6pt; padding: 1.5pt 2.5pt 2pt 2.5pt; }
+body.compact .cap { font-size: 6.8pt; padding: 1.5pt 2.5pt 2pt 2.5pt; }
 body.compact ol.refs { font-size: 6.7pt; line-height: 1.2; }
-body.compact .case { margin-bottom: 4pt; }
+body.compact .case { margin-bottom: 3pt; }
+body.compact .cardbody, body.compact .cardbody .text { font-size: 6.7pt; }
 body.compact p { margin: 2pt 0; }
 """
 
@@ -130,10 +134,6 @@ def ci(s: dict, key: str) -> str:
         return f"<span class='muted'>[{float(lo)*100:.0f}, {float(hi)*100:.0f}]</span>"
     except ValueError:
         return ""
-
-
-def img_b64(p: Path) -> str:
-    return "data:image/png;base64," + base64.b64encode(p.read_bytes()).decode()
 
 
 def results_table(scores: dict) -> str:
@@ -302,40 +302,29 @@ def taxonomy_block() -> str:
 
 
 def gallery(panels: int) -> str:
-    d = C.RESULTS_DIR / "failures"
-    pngs = sorted(d.glob("*.png")) if d.exists() else []
-    if not pngs:
-        return ("<p class='muted'>No panels yet — run "
-                "<code>python scripts/05_mine.py --per-category 2</code>.</p>")
-    index_p = d / "index.json"
-    index = json.loads(index_p.read_text()) if index_p.exists() else {}
-
-    # Round-robin across failure classes so the gallery covers the taxonomy
-    # rather than showing five variants of the same mistake.
-    groups: dict[str, list[Path]] = {}
-    for p in pngs:
-        c = index.get(p.name, {}).get("class", "case")
-        groups.setdefault(c, []).append(p)
-    order = sorted(groups, key=lambda k: -len(groups[k]))
-    picked, depth = [], 0
-    while len(picked) < panels and any(len(v) > depth for v in groups.values()):
-        for k in order:
-            if len(picked) >= panels:
-                break
-            if len(groups[k]) > depth:
-                picked.append((k, groups[k][depth]))
-        depth += 1
-
+    cases = F.select_cases(panels)
+    if not cases:
+        return ("<p class='muted'>No failure candidates yet — run "
+                "<code>python scripts/05_mine.py</code>.</p>")
     cells = []
-    for i, (c, p) in enumerate(picked, 1):
-        meta = index.get(p.name, {})
-        ref = " · ".join(str(meta.get(k, "")) for k in ("model", "task")) if meta else ""
-        if meta.get("id") is not None:
-            ref += f" · id {meta['id']}"
+    for i, row in enumerate(cases, 1):
+        gt = html.escape(F.ground_truth_text(row))
+        try:
+            if abs(float(row.get("strict_score")) - float(row.get("lenient_score"))) > 1e-9:
+                gt += f" <span class='muted'>({html.escape(F.score_text(row))})</span>"
+        except (TypeError, ValueError):
+            pass
+        meta = " · ".join(html.escape(x) for x in (
+            F.model_id_label(row), F.task_label(row), f"id {row.get('id', '?')}"))
         cells.append(
-            f"<div class='case'><img src='{img_b64(p)}'>"
-            f"<div class='cap'><b>Case {i} — {GROUP.get(c, c.replace('_', ' '))}</b> "
-            f"<span class='muted'>{ref}</span></div></div>")
+            f"<div class='case'><div class='cap'><b>Case {i} — "
+            f"{html.escape(F.class_label(row))}</b><br>"
+            f"<span class='muted'>{meta}</span></div>"
+            f"<div class='cardbody'><span class='lbl'>Prompt.</span>"
+            f"<div class='text'>{html.escape(F.prompt_text(row))}</div>"
+            f"<span class='lbl'>Response.</span>"
+            f"<div class='text'>{html.escape(F.response_text(row))}</div>"
+            f"<span class='lbl'>Ground truth.</span> {gt}</div></div>")
     return f"<div class='gallery'>{''.join(cells)}</div>"
 
 
@@ -372,9 +361,8 @@ spread near the ground truth; r ≈ 0 with σ<sub>pred</sub>/σ<sub>GT</sub> ≪
 {blind_table(scores)}
 
 <h2>Representative failure cases</h2>
-<p class="muted small">Each panel shows {__import__("os").environ.get("VSI_PANEL_FRAMES", "6")} of the 32 frames the
-model actually saw (labelled with their source frame index), the question, the ground truth, and the
-raw prediction.</p>
+<p class="muted small">Each card gives the exact text prompt sent with the 32 input frames (frames omitted here),
+the model's complete decoded response, the model checkpoint, and the ground truth.</p>
 {gallery(panels)}
 
 <h2>Failure taxonomy</h2>
